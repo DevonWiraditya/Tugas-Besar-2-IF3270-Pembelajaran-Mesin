@@ -15,7 +15,7 @@ from src.cnn.config import CNNConfig
 from src.cnn.data import ImageRecord, load_cnn_dataset, records_to_arrays
 from src.cnn.experiments import CNNExperiment, iter_cnn_experiments
 from src.cnn.keras_models import build_shared_cnn_model, compile_cnn_model
-from src.utils.io import write_history_csv, write_json
+from src.utils.io import read_json, write_csv, write_history_csv, write_json
 from src.utils.random import set_global_seed
 
 
@@ -64,8 +64,20 @@ def train_experiment(
     experiment: CNNExperiment,
     epochs: int | None = None,
     batch_size: int | None = None,
+    skip_existing: bool = False,
 ) -> dict:
     set_global_seed(config.seed)
+    run_dir = config.output.models_dir / experiment.run_id
+
+    if skip_existing and is_completed_run(run_dir):
+        metrics = read_json(run_dir / "metrics.json")
+        return {
+            "run_id": experiment.run_id,
+            "model_dir": str(run_dir),
+            "metrics": metrics,
+            "status": "skipped",
+        }
+
     dataset = load_cnn_dataset(config)
     fit_epochs = config.training.epochs if epochs is None else epochs
     fit_batch_size = config.training.batch_size if batch_size is None else batch_size
@@ -86,7 +98,6 @@ def train_experiment(
     )
 
     model = compile_cnn_model(build_shared_cnn_model(config, experiment), config)
-    run_dir = config.output.models_dir / experiment.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     history = model.fit(
@@ -102,6 +113,7 @@ def train_experiment(
         "run_id": experiment.run_id,
         "model_dir": str(run_dir),
         "metrics": metrics,
+        "status": "trained",
     }
 
 
@@ -110,6 +122,7 @@ def train_experiments(
     experiments: Iterable[CNNExperiment] | None = None,
     epochs: int | None = None,
     batch_size: int | None = None,
+    skip_existing: bool = False,
 ) -> list[dict]:
     selected = iter_cnn_experiments(config) if experiments is None else tuple(experiments)
     results: list[dict] = []
@@ -121,10 +134,23 @@ def train_experiments(
                 experiment,
                 epochs=epochs,
                 batch_size=batch_size,
+                skip_existing=skip_existing,
             )
         )
 
     return results
+
+
+def is_completed_run(run_dir: Path) -> bool:
+    required = (
+        run_dir / "model.keras",
+        run_dir / "weights.weights.h5",
+        run_dir / "history.csv",
+        run_dir / "metrics.json",
+        run_dir / "experiment.json",
+        run_dir / "contract.json",
+    )
+    return all(path.exists() for path in required)
 
 
 def evaluate_sequence(
@@ -168,4 +194,33 @@ def save_run_artifacts(
             "pool_strides": config.architecture_defaults.pool_strides,
         },
         run_dir / "contract.json",
+    )
+
+
+def write_training_summary(results: Iterable[dict], path: Path) -> None:
+    rows = []
+    for result in results:
+        metrics = result["metrics"]
+        rows.append(
+            [
+                result["run_id"],
+                result.get("status", ""),
+                result["model_dir"],
+                metrics.get("loss", ""),
+                metrics.get("sparse_categorical_accuracy", ""),
+                metrics.get("macro_f1", ""),
+            ]
+        )
+
+    write_csv(
+        path,
+        [
+            "run_id",
+            "status",
+            "model_dir",
+            "loss",
+            "sparse_categorical_accuracy",
+            "macro_f1",
+        ],
+        rows,
     )

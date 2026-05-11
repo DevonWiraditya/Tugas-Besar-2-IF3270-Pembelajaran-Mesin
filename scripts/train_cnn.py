@@ -11,8 +11,7 @@ if str(ROOT) not in sys.path:
 
 from src.cnn.config import load_cnn_config
 from src.cnn.experiments import get_cnn_experiment, iter_cnn_experiments
-from src.cnn.keras_models import build_shared_cnn_model
-from src.cnn.training import train_experiments
+from src.utils.tensorflow_runtime import configure_tensorflow_runtime
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,11 +22,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--run-id", action="append", default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument("--summary-path", default=None)
+    parser.add_argument("--force-cpu", action="store_true")
+    parser.add_argument("--mixed-precision", action="store_true")
+    parser.add_argument("--disable-memory-growth", action="store_true")
+    parser.add_argument("--show-devices", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    runtime = configure_tensorflow_runtime(
+        use_gpu=not args.force_cpu,
+        memory_growth=not args.disable_memory_growth,
+        mixed_precision=args.mixed_precision,
+    )
+    if args.show_devices:
+        _print_runtime(runtime)
+
+    from src.cnn.keras_models import build_shared_cnn_model
+    from src.cnn.training import train_experiments, write_training_summary
+
     config = load_cnn_config(args.config, check_data=True)
     experiments = _select_experiments(config, args.run_id, args.limit)
 
@@ -42,14 +58,23 @@ def main() -> None:
         experiments=experiments,
         epochs=args.epochs,
         batch_size=args.batch_size,
+        skip_existing=args.skip_existing,
     )
+    summary_path = (
+        Path(args.summary_path)
+        if args.summary_path
+        else config.output.reports_dir / "shared_training_summary.csv"
+    )
+    write_training_summary(results, summary_path)
     for result in results:
         metrics = result["metrics"]
         print(
             f"{result['run_id']}: "
+            f"status={result['status']}, "
             f"val_macro_f1={metrics['macro_f1']:.4f}, "
             f"val_accuracy={metrics['sparse_categorical_accuracy']:.4f}"
         )
+    print(f"summary={summary_path}")
 
 
 def _select_experiments(config, run_ids, limit):
@@ -62,6 +87,15 @@ def _select_experiments(config, run_ids, limit):
         experiments = experiments[:limit]
 
     return experiments
+
+
+def _print_runtime(runtime: dict) -> None:
+    print(f"Physical GPUs: {runtime['physical_gpus']}")
+    print(f"Logical GPUs: {runtime['logical_gpus']}")
+    print(f"Memory growth: {runtime['memory_growth']}")
+    print(f"Mixed precision policy: {runtime['mixed_precision_policy']}")
+    for error in runtime["errors"]:
+        print(f"Runtime warning: {error}")
 
 
 if __name__ == "__main__":

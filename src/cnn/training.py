@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import csv
-import json
 import os
 from pathlib import Path
 import random
@@ -17,6 +15,8 @@ from src.cnn.config import CNNConfig
 from src.cnn.data import ImageRecord, load_cnn_dataset, records_to_arrays
 from src.cnn.experiments import CNNExperiment, iter_cnn_experiments
 from src.cnn.keras_models import build_shared_cnn_model, compile_cnn_model
+from src.utils.io import write_history_csv, write_json
+from src.utils.random import set_global_seed
 
 
 class CNNImageSequence(tf.keras.utils.Sequence):
@@ -57,12 +57,6 @@ class CNNImageSequence(tf.keras.utils.Sequence):
             [self.records[index].label for index in self.indexes],
             dtype=np.int64,
         )
-
-
-def set_global_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-    tf.keras.utils.set_random_seed(seed)
 
 
 def train_experiment(
@@ -158,10 +152,10 @@ def save_run_artifacts(
 ) -> None:
     model.save(run_dir / "model.keras")
     model.save_weights(run_dir / "weights.weights.h5")
-    _write_history(history, run_dir / "history.csv")
-    _write_json(metrics, run_dir / "metrics.json")
-    _write_json(experiment.to_dict(), run_dir / "experiment.json")
-    _write_json(
+    write_history_csv(history, run_dir / "history.csv")
+    write_json(metrics, run_dir / "metrics.json")
+    write_json(experiment.to_dict(), run_dir / "experiment.json")
+    write_json(
         {
             "input_shape": config.input_shape,
             "class_names": config.data.class_names,
@@ -175,19 +169,3 @@ def save_run_artifacts(
         },
         run_dir / "contract.json",
     )
-
-
-def _write_history(history: dict[str, list[float]], path: Path) -> None:
-    keys = list(history.keys())
-    rows = zip(*[history[key] for key in keys])
-
-    with path.open("w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["epoch", *keys])
-        for index, values in enumerate(rows, start=1):
-            writer.writerow([index, *values])
-
-
-def _write_json(data: dict, path: Path) -> None:
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2)

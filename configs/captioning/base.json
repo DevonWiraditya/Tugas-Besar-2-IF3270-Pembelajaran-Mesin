@@ -1,0 +1,65 @@
+{
+  "project": "captioning_flickr8k",
+  "seed": 42,
+  "data": {
+    "dataset_root": "dataset/flickr8k",
+    "images_dir": "dataset/flickr8k/images",
+    "captions_path": "dataset/flickr8k/Flickr8k.token.txt",
+    "train_split_path": "dataset/flickr8k/Flickr_8k.trainImages.txt",
+    "validation_split_path": "dataset/flickr8k/Flickr_8k.devImages.txt",
+    "test_split_path": "dataset/flickr8k/Flickr_8k.testImages.txt",
+    "image_size": [
+      299,
+      299
+    ],
+    "channels": 3,
+    "color_mode": "rgb",
+    "normalization": "zero_one"
+  },
+  "text": {
+    "lowercase": true,
+    "strip_punctuation": true,
+    "start_token": "<start>",
+    "end_token": "<end>",
+    "pad_token": "<pad>",
+    "oov_token": "<unk>",
+    "min_word_frequency": 1,
+    "max_caption_length": 34,
+    "embedding_dim": 256
+  },
+  "encoder": {
+    "backbone": "inception_v3",
+    "weights": "imagenet",
+    "trainable": false,
+    "pooling": "avg",
+    "feature_dim": 2048,
+    "projection_dim": 256
+  },
+  "training": {
+    "batch_size": 32,
+    "epochs": 20,
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "loss": "sparse_categorical_crossentropy"
+  },
+  "experiment_grid": {
+    "recurrent_types": [
+      "rnn",
+      "lstm"
+    ],
+    "layer_counts": [
+      1,
+      2,
+      3
+    ],
+    "hidden_sizes": [
+      128,
+      512
+    ]
+  },
+  "output": {
+    "artifacts_dir": "artifacts/captioning",
+    "models_dir": "models/captioning",
+    "reports_dir": "reports/captioning"
+  }
+}

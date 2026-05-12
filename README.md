@@ -1,575 +1,553 @@
 # Tugas Besar 2 IF3270 Pembelajaran Mesin
 
-## Tujuan Repository
+## Tujuan README Ini
 
-Repository ini dipakai untuk mengerjakan Tugas Besar 2 IF3270 Pembelajaran Mesin dengan fokus pada dua bagian utama:
+README ini ditulis sebagai **handoff context** untuk AI lain atau anggota tim lain yang akan melanjutkan repository ini.
 
-- implementasi dan eksperimen Convolutional Neural Network (CNN) untuk image classification,
-- implementasi dan eksperimen Simple RNN dan LSTM untuk image captioning.
+Fokus README ini:
 
-Dokumen ini sengaja ditulis sebagai handoff context untuk AI lain atau anggota tim lain. Targetnya adalah supaya siapa pun yang melanjutkan repository ini bisa langsung paham:
+- menjelaskan requirement wajib dari spesifikasi,
+- memisahkan requirement wajib dan bonus,
+- memetakan kondisi repo saat ini berdasarkan isi kode yang benar-benar sudah ada,
+- menjelaskan apa yang sudah selesai,
+- menjelaskan apa yang belum selesai,
+- memberi urutan kerja selanjutnya,
+- dan memberi langkah konkret untuk mengerjakan bonus.
 
-- apa isi spesifikasi tugas,
-- mana requirement wajib,
-- mana bonus,
-- kondisi repository saat ini,
-- apa yang sudah selesai,
-- apa yang belum selesai,
-- dan urutan kerja yang paling masuk akal.
+README ini **bukan** README final untuk pengumpulan. Nanti setelah implementasi selesai, README ini perlu diringkas menjadi README final yang lebih cocok untuk dosen/asisten.
 
 ## Sumber Konteks
 
-Analisis README ini disusun dari:
+Sumber analisis:
 
 - PDF spesifikasi: `Spesifikasi Tugas Besar 2 IF3270 Pembelajaran Mesin.pdf`
-- isi repository saat ini.
+- isi repository saat ini
+- progres terbaru dari teman satu tim yang sudah masuk ke branch/worktree ini
 
-Deadline pada PDF: **Jumat, 15 Mei 2026**.
+Deadline pada PDF: **Jumat, 15 Mei 2026**
 
-## Ringkasan Spesifikasi
+## Ringkasan Tugas
 
-Tugas besar dibagi menjadi dua jalur utama:
+Tugas besar terdiri dari dua jalur utama:
 
-- CNN untuk image classification.
-- RNN/LSTM untuk image captioning.
+- **CNN untuk image classification** pada dataset Intel Image Classification
+- **Simple RNN dan LSTM untuk image captioning** pada dataset Flickr8k
 
-Ada juga bagian bonus, tetapi bonus bersifat opsional. Fokus utama repository ini harus tetap pada pemenuhan requirement wajib terlebih dahulu.
+Selain itu ada **bagian bonus** yang opsional.
+
+Prioritas pengerjaan harus tetap:
+
+1. selesaikan semua requirement wajib,
+2. pastikan evaluasi dan deliverables utama lengkap,
+3. baru pertimbangkan bonus.
 
 ## Requirement Wajib
 
-### 1. Bagian CNN
+### 1. CNN untuk Image Classification
 
 Konteks:
 
-- Task: image classification.
-- Dataset: Intel Image Classification.
-- Jumlah kelas: 6.
-- Split train, validation, dan test sudah tersedia dari dataset.
-
-#### 1.1 Utility dasar image
-
-Harus ada utility function berbasis PIL/Pillow dan NumPy, tanpa Keras preprocessing untuk bagian image utility dasar.
+- task: image classification
+- dataset: Intel Image Classification
+- jumlah kelas: 6
+- split utama: train, validation, test
 
 Yang diwajibkan:
 
-- image loader dari file path,
-- resize ke ukuran target,
-- konversi ke NumPy array,
-- normalisasi pixel ke rentang `[0, 1]`,
-- batch loader untuk list path menjadi tensor `(N, H, W, C)`.
+- utility image loading berbasis PIL/Pillow dan NumPy
+- feature extractor yang menyimpan output `.npy`
+- training CNN menggunakan Keras
+- implementasi forward propagation from scratch yang bisa membaca bobot Keras
+- eksperimen hyperparameter CNN
+- evaluasi macro F1-score
+- perbandingan Keras vs scratch
+- perbandingan shared parameter vs non-shared parameter
 
-#### 1.2 Feature extractor
+Layer CNN wajib:
 
-Harus ada utility feature extractor yang:
+- `Conv2D`
+- `LocallyConnected2D`
+- pooling layer
+- `Flatten` atau global pooling
+- `Dense`
 
-- menerima list path gambar,
-- menggunakan CNN encoder Keras yang frozen,
-- mengekstraksi feature vector,
-- menyimpan hasilnya ke disk dalam format `.npy` agar tidak diekstraksi ulang.
+Eksperimen CNN wajib:
 
-#### 1.3 Training model CNN dengan Keras
+- 2 variasi jumlah layer konvolusi
+- 2 variasi kombinasi jumlah filter
+- 2 variasi kombinasi ukuran kernel
+- 2 variasi jenis pooling
+- total **16 eksperimen**
 
-Harus melatih model CNN menggunakan Keras.
+Evaluasi CNN wajib:
 
-Layer minimal yang harus tercakup pada arsitektur CNN:
+- macro F1-score
+- training/validation loss
+- bandingkan shared vs non-shared
+- bandingkan Keras vs scratch
+- bandingkan jumlah parameter
 
-- `Conv2D` shared parameter,
-- pooling layer,
-- `Flatten` atau global pooling,
-- `Dense`.
-
-Loss dan optimizer yang diwajibkan:
-
-- loss: `SparseCategoricalCrossentropy`,
-- optimizer: `Adam`.
-
-#### 1.4 Forward propagation CNN from scratch
-
-Harus mengimplementasikan forward propagation from scratch yang dapat membaca bobot hasil training Keras.
-
-Setiap layer sebaiknya modular dan punya method `forward(...)`.
-
-Layer wajib:
-
-- `Conv2D` shared parameters,
-- `LocallyConnected2D` non-shared parameters,
-- `MaxPooling2D` dan/atau `AveragePooling2D`,
-- `GlobalAveragePooling2D` dan/atau `GlobalMaxPooling2D`,
-- `Flatten`,
-- fungsi aktivasi seperti `ReLU` dan `Softmax`,
-- `Dense`.
-
-Catatan dari spesifikasi:
-
-- Dense boleh mengadaptasi implementasi FFNN dari Tubes 1.
-
-#### 1.5 Eksperimen CNN
-
-Harus melakukan variasi hyperparameter berikut untuk model CNN shared parameter:
-
-- jumlah layer konvolusi: 2 variasi,
-- banyak filter per layer: 2 variasi kombinasi,
-- ukuran filter per layer: 2 variasi kombinasi,
-- jenis pooling: 2 variasi, yaitu max pooling dan average pooling.
-
-Total eksperimen yang diharapkan: **16 arsitektur**.
-
-#### 1.6 Evaluasi CNN
-
-Metrik utama yang diwajibkan:
-
-- **macro F1-score**.
-
-Yang harus dilakukan:
-
-- simpan bobot semua model hasil training,
-- pilih arsitektur terbaik dari eksperimen Keras,
-- jalankan forward propagation from scratch untuk arsitektur shared,
-- buat variasi arsitektur non-shared dengan mengganti semua `Conv2D` menjadi `LocallyConnected2D`,
-- bandingkan Keras vs scratch,
-- bandingkan shared vs non-shared,
-- bandingkan jumlah parameter,
-- bandingkan training/validation loss,
-- dan tulis analisis kesimpulannya.
-
-### 2. Bagian RNN dan LSTM untuk Image Captioning
+### 2. RNN dan LSTM untuk Image Captioning
 
 Konteks:
 
-- Task: image captioning.
-- Dataset: Flickr8k.
-- Sekitar 8.092 gambar.
-- Tiap gambar punya 5 caption.
-- Split: 6000 train, 1000 validation, 1000 test.
+- task: image captioning
+- dataset: Flickr8k
+- sekitar 8092 gambar
+- 5 caption per gambar
+- split: 6000 train, 1000 validation, 1000 test
 
 Arsitektur wajib:
 
-- encoder-decoder,
-- encoder: CNN pretrained Keras yang frozen,
-- decoder: dua model terpisah, yaitu `SimpleRNN` dan `LSTM`.
+- encoder-decoder
+- encoder: CNN pretrained Keras yang frozen
+- decoder: `SimpleRNN` dan `LSTM`
+- metode injection: **pre-inject**
 
-Metode injection yang diwajibkan:
+Komponen scratch wajib:
 
-- **pre-inject**.
-
-Artinya:
-
-- feature vector dari CNN diproyeksikan ke `embed_dim` melalui Dense,
-- hasil proyeksi itu dipakai sebagai input timestep sebelum token `<start>`,
-- hidden state awal bernilai nol,
-- untuk LSTM, cell state awal juga nol.
-
-#### 2.1 Forward propagation from scratch untuk decoder
-
-Komponen wajib yang harus diimplementasikan dari nol:
-
-- `Embedding` layer,
-- `SimpleRNN cell`,
-- `LSTM cell`,
-- `Dense projection layer`,
-- `Dense output layer` dengan softmax.
-
-#### 2.2 Feature extraction CNN encoder
-
-Harus menggunakan CNN pretrained dari Keras, tanpa classification head, dan bobot ImageNet yang dibekukan.
-
-Direkomendasikan oleh spesifikasi:
-
-- `InceptionV3`, atau
-- `VGG16`.
-
-Yang harus dilakukan:
-
-- forward pass seluruh gambar Flickr8k,
-- simpan feature vectors ke disk dalam format `.npy`,
-- hasil ini dipakai ulang untuk training decoder RNN dan LSTM.
-
-#### 2.3 Preprocessing caption
+- `Embedding`
+- `SimpleRNN cell`
+- `LSTM cell`
+- `Dense projection`
+- `Dense output`
 
 Yang diwajibkan:
 
-- lowercase,
-- hapus tanda baca,
-- tokenisasi,
-- bangun vocabulary dari caption training,
-- token khusus wajib:
-- `<start>`
-- `<end>`
-- `<pad>`
-- padding sequence ke panjang seragam,
-- simpan vocabulary ke disk, misalnya `.json`.
+- feature extraction CNN encoder ke `.npy`
+- preprocessing caption
+- training decoder Keras untuk RNN dan LSTM
+- eksperimen jumlah layer dan hidden state
+- implementasi decoder scratch
+- pipeline end-to-end image ke caption
+- evaluasi BLEU-4, METEOR, dan waktu eksekusi
+- perbandingan RNN vs LSTM
+- perbandingan Keras vs scratch
+- eksperimen max caption length
 
-#### 2.4 Training decoder Keras
+Eksperimen captioning wajib:
 
-Harus melatih dua jenis decoder secara terpisah:
+- 3 variasi jumlah recurrent layer
+- 2 variasi hidden state
+- minimal 6 eksperimen untuk RNN
+- minimal 6 eksperimen untuk LSTM
+- total minimal **12 eksperimen**
 
-- `SimpleRNN`,
-- `LSTM`.
-
-Variasi training yang diwajibkan untuk masing-masing decoder:
-
-- jumlah layer recurrent: 3 variasi,
-- hidden state size: 2 variasi.
-
-Minimum total eksperimen:
-
-- 6 variasi untuk RNN,
-- 6 variasi untuk LSTM,
-- total 12 variasi.
-
-#### 2.5 Implementasi arsitektur end-to-end
-
-Harus bisa load:
-
-- bobot CNN encoder pretrained,
-- bobot decoder hasil training,
-- lalu menjalankan pipeline dari raw image sampai menghasilkan caption.
-
-Harus ada 2 arsitektur scratch utama:
-
-- encoder + decoder RNN,
-- encoder + decoder LSTM.
-
-#### 2.6 Evaluasi captioning
-
-Yang diwajibkan:
-
-- catat **BLEU-4**,
-- catat **waktu eksekusi**,
-- pilih 1 variasi terbaik untuk masing-masing RNN dan LSTM,
-- bandingkan dengan implementasi Keras yang setara,
-- pilih arsitektur terbaik dari kombinasi RNN/LSTM dan Keras/Scratch,
-- lakukan variasi panjang maksimum caption minimal 3 variasi,
-- catat pengaruhnya terhadap score.
-
-Evaluasi dan analisis yang diwajibkan pada laporan:
-
-- perbandingan jumlah layer dan hidden state,
-- perbandingan RNN vs LSTM,
-- perbandingan Keras vs scratch,
-- BLEU-4 dan METEOR,
-- training loss dan validation loss,
-- analisis kualitatif minimal 10 contoh gambar dengan caption ground truth dan caption hasil model,
-- analisis konsep vanishing gradient dan memori jangka panjang untuk menjelaskan perbedaan RNN dan LSTM.
-
-### 3. Deliverables Wajib Repository
+### 3. Deliverables Wajib
 
 Repository final minimal harus berisi:
 
-- folder `src`,
-- folder `doc`,
-- `README.md`.
+- `src/`
+- `doc/`
+- `README.md`
 
-Isi minimal `README.md` final untuk manusia:
+Laporan final minimal harus mencakup:
 
-- deskripsi singkat repository,
-- cara setup,
-- cara menjalankan program,
-- pembagian tugas tiap anggota kelompok.
+- deskripsi persoalan
+- penjelasan implementasi
+- penjelasan forward propagation
+- hasil pengujian CNN
+- perbandingan shared vs non-shared
+- analisis variasi hyperparameter CNN
+- hasil pengujian image captioning
+- perbandingan RNN vs LSTM
+- perbandingan Keras vs scratch
+- pengaruh max caption length
+- kesimpulan
+- pembagian tugas
+- referensi
 
-Isi minimal laporan PDF di folder `doc`:
+## Bonus
 
-- cover,
-- deskripsi persoalan,
-- pembahasan,
-- penjelasan implementasi,
-- penjelasan forward propagation,
-- hasil pengujian CNN,
-- perbandingan shared vs non-shared,
-- pengaruh jumlah layer/filter/kernel/pooling pada CNN,
-- hasil pengujian image captioning,
-- perbandingan jumlah layer untuk RNN dan LSTM,
-- perbandingan hidden state untuk RNN dan LSTM,
-- perbandingan RNN vs LSTM,
-- perbandingan Keras vs scratch,
-- pengaruh panjang maksimum caption terhadap BLEU-4,
-- kesimpulan dan saran,
-- pembagian tugas,
-- referensi,
-- lampiran form penggunaan AI.
+Bagian ini opsional.
 
-## Bagian Bonus
+Bonus dari spesifikasi:
 
-Bagian ini **opsional**, bukan requirement minimum.
+- visualisasi feature map dan Grad-CAM
+- captioning dengan arsitektur **init-inject**
+- beam search decoder
+- batch inference untuk seluruh forward scratch
+- backward propagation from scratch
 
-Bonus yang tercantum pada spesifikasi:
-
-- `[CNN]` visualisasi fitur intermediate dan Grad-CAM.
-- `[RNN/LSTM]` image captioning dengan arsitektur alternatif **init-inject**.
-- `[RNN/LSTM]` beam search decoder, misalnya `k=3` atau `k=5`.
-- `[Semua]` batch inference pada seluruh implementasi forward propagation from scratch.
-- `[Semua]` backward propagation from scratch.
-
-Catatan penting:
-
-- Bonus **tidak boleh mengganggu penyelesaian requirement wajib**.
-- Jika waktu terbatas, jangan sentuh bonus sebelum semua requirement inti selesai.
-- Dari semua bonus, yang paling realistis untuk ditambahkan setelah requirement inti selesai biasanya adalah:
-- batch inference,
-- beam search,
-- Grad-CAM.
+Bonus sebaiknya dikerjakan hanya setelah requirement wajib stabil.
 
 ## Kondisi Repository Saat Ini
 
-Saat file ini ditulis, repository masih dalam tahap awal.
+Repository sekarang **tidak lagi kosong**. Jalur CNN sudah punya fondasi yang cukup jelas, sementara jalur captioning masih hampir kosong.
 
-Struktur file yang terdeteksi:
+Struktur penting yang sudah ada:
 
-- `src/__init__.py`
-- `src/utils/__init__.py`
-- `src/utils/images.py`
-- `src/utils/io.py`
-- `src/utils/random.py`
-- `src/captioning/__init__.py`
-- `configs/captioning/.gitkeep`
-- `requirements.txt`
+- `src/utils/`
+- `src/cnn/`
+- `scripts/`
+- `configs/cnn/base.json`
+- dataset Intel ada di `dataset/`
 
-README lama sebelumnya hampir kosong.
+Struktur penting yang belum terisi signifikan:
+
+- `src/captioning/`
+- `configs/captioning/`
+- `doc/`
 
 ## Yang Sudah Selesai
 
-### 1. Utility image loading dasar
+Bagian ini berdasarkan file yang memang sudah ada saat README ini ditulis.
 
-File: `src/utils/images.py`
+### 1. Utility umum
 
-Sudah ada:
+Sudah ada di `src/utils/`:
 
-- `load_image(...)`
-- `load_image_batch(...)`
+- image loading dasar
+- batch image loading
+- JSON/CSV writer
+- training history CSV writer
+- global seed helper
 
-Detail yang sudah terpenuhi:
+Artinya, fondasi utility umum sudah cukup baik untuk dipakai ulang di CNN maupun captioning.
 
-- load gambar dengan `PIL.Image.open`,
-- convert mode warna,
-- resize ke target size,
-- konversi ke NumPy array,
-- normalisasi ke `[0, 1]`,
-- validasi shape,
-- dukungan batch image dari list path ke tensor `(N, H, W, C)`.
+### 2. Data pipeline dasar CNN
 
-Status terhadap spesifikasi:
+Sudah ada di `src/cnn/data.py`:
 
-- ini sudah memenuhi sebagian requirement utility dasar image untuk bagian CNN,
-- dan bisa dipakai ulang untuk preprocessing image pada captioning.
+- `ImageRecord`
+- `CNNDataset`
+- scan folder labeled image
+- scan folder unlabeled image
+- stratified train/validation split
+- konversi record ke array image dan label
+- iterator batch berbasis NumPy loader
+- hitung jumlah sample per kelas
 
-### 2. Utility I/O dasar
+Ini berarti temanmu sudah menyelesaikan:
 
-File: `src/utils/io.py`
-
-Sudah ada:
-
-- `read_json(...)`
-- `write_json(...)`
-- `write_csv(...)`
-- `write_history_csv(...)`
-
-Status:
-
-- sudah berguna untuk menyimpan konfigurasi,
-- menyimpan hasil eksperimen,
-- menyimpan history training,
-- dan menyimpan vocabulary caption.
-
-### 3. Utility reproducibility
-
-File: `src/utils/random.py`
-
-Sudah ada:
-
-- `set_global_seed(...)`
+- pembacaan struktur dataset Intel,
+- class mapping berbasis urutan `class_names`,
+- split train/validation dari `seg_train`,
+- loading `seg_test`,
+- loading `seg_pred`.
 
 Status:
 
-- ini membantu reproducibility untuk `random`, `numpy`, dan `tensorflow`.
+- **cukup bagus untuk baseline CNN Keras**
+- **belum sama dengan feature extractor**
+- **belum terkait scratch CNN**
 
-### 4. Re-export utility
+### 3. Konfigurasi eksperimen CNN
 
-File: `src/utils/__init__.py`
+Sudah ada di `src/cnn/config.py` dan `configs/cnn/base.json`.
 
-Sudah ada ekspor utilitas agar impor modul lebih rapi.
+Yang sudah tersedia:
+
+- parsing config dari JSON
+- validasi config
+- validasi jumlah eksperimen = 16
+- validasi layout dataset
+- struktur config yang memisahkan:
+- data
+- training
+- architecture defaults
+- experiment grid
+- output paths
+
+Config `base.json` saat ini sudah memuat:
+
+- dataset Intel
+- image size `128x128`
+- batch size `32`
+- epochs `20`
+- optimizer `adam`
+- loss `sparse_categorical_crossentropy`
+- comparison metric `macro_f1`
+- conv layer count `[1, 2]`
+- filter profiles `[[16, 32], [32, 64]]`
+- kernel profiles `[[[3,3],[3,3]], [[5,5],[3,3]]]`
+- pooling types `["max", "average"]`
+
+Status:
+
+- requirement grid eksperimen CNN **sudah dipersiapkan**
+- jumlah eksperimen **sudah cocok 16**
+
+### 4. Enumerasi eksperimen CNN
+
+Sudah ada di `src/cnn/experiments.py`.
+
+Yang sudah ada:
+
+- `CNNExperiment`
+- generator semua kombinasi eksperimen
+- `run_id` yang konsisten
+- lookup eksperimen berdasarkan `run_id`
+
+Status:
+
+- fondasi untuk automasi training 16 eksperimen **sudah ada**
+
+### 5. Model CNN Keras shared parameter
+
+Sudah ada di `src/cnn/keras_models.py`.
+
+Yang sudah dibuat:
+
+- builder model CNN shared berbasis `Conv2D`
+- support pooling `max` dan `average`
+- flatten
+- dense hidden layer
+- dense output
+- compile dengan optimizer Adam
+
+Status:
+
+- baseline CNN Keras shared **sudah ada**
+- ini sudah memenuhi sebagian requirement training model CNN shared
+- **belum ada model non-shared `LocallyConnected2D`**
+
+### 6. Training pipeline CNN Keras
+
+Sudah ada di `src/cnn/training.py`.
+
+Yang sudah dibuat:
+
+- `CNNImageSequence`
+- training satu eksperimen
+- training banyak eksperimen
+- skip run kalau artifact lengkap sudah ada
+- evaluasi validation dengan:
+- loss
+- sparse categorical accuracy
+- macro F1-score
+- simpan artifact:
+- `model.keras`
+- `weights.weights.h5`
+- `history.csv`
+- `metrics.json`
+- `experiment.json`
+- `contract.json`
+- export summary CSV
+
+Status:
+
+- pipeline training CNN shared Keras **sudah cukup jalan secara struktur**
+- macro F1 validation **sudah ada**
+- artifact management dasar **sudah ada**
+
+Catatan:
+
+- evaluasi yang tersimpan saat ini tampaknya fokus ke **validation sequence**, belum terlihat evaluasi final yang eksplisit untuk **test split**
+
+### 7. Script CLI untuk CNN
+
+Sudah ada di `scripts/`:
+
+- `validate_cnn_config.py`
+- `inspect_cnn_dataset.py`
+- `train_cnn.py`
+
+Kegunaannya:
+
+- validasi config
+- inspeksi dataset
+- training eksperimen CNN
+
+Status:
+
+- jalur CNN sekarang sudah punya entry point CLI dasar
+
+### 8. Dataset Intel sudah masuk repo/worktree
+
+Folder dataset yang terdeteksi:
+
+- `dataset/seg_train`
+- `dataset/seg_test`
+- `dataset/seg_pred`
+
+Status:
+
+- jalur CNN bisa dikerjakan langsung tanpa harus menunggu dataset Intel lagi
 
 ## Yang Belum Selesai
 
-Bagian inti tugas hampir semuanya belum ada di repository saat ini.
+Bagian ini penting karena README sebelumnya terlalu menganggap repo masih kosong. Sekarang statusnya harus lebih presisi.
 
-### A. Yang belum ada untuk CNN
+### A. CNN yang masih belum selesai
 
-- belum ada data pipeline Intel Image Classification,
-- belum ada class mapping dan metadata dataset,
-- belum ada builder model CNN Keras,
-- belum ada script training CNN,
-- belum ada 16 eksperimen hyperparameter CNN,
-- belum ada penyimpanan bobot seluruh model eksperimen,
-- belum ada evaluasi macro F1-score,
-- belum ada plotting training/validation loss,
-- belum ada feature extractor `.npy`,
-- belum ada implementasi `Conv2D` scratch,
-- belum ada implementasi `LocallyConnected2D` scratch,
-- belum ada implementasi pooling scratch,
-- belum ada implementasi global pooling scratch,
-- belum ada implementasi `Flatten` scratch,
-- belum ada implementasi aktivasi scratch,
-- belum ada implementasi `Dense` scratch di repo ini,
-- belum ada adaptor load bobot Keras ke scratch,
-- belum ada script pembanding Keras vs scratch,
-- belum ada eksperimen shared vs non-shared.
+Meski jalur CNN shared Keras sudah punya fondasi, masih banyak requirement CNN yang belum selesai:
 
-### B. Yang belum ada untuk captioning
+- belum ada feature extractor `.npy` berbasis CNN frozen
+- belum ada evaluasi final yang eksplisit pada split **test**
+- belum ada script analisis hasil 16 eksperimen
+- belum ada plotting training/validation loss otomatis
+- belum ada confusion matrix atau evaluasi klasifikasi lebih lengkap
+- belum ada model `LocallyConnected2D` Keras untuk eksperimen non-shared
+- belum ada perbandingan shared vs non-shared
+- belum ada implementasi scratch untuk:
+- `Conv2D`
+- `LocallyConnected2D`
+- pooling
+- global pooling
+- `Flatten`
+- aktivasi
+- `Dense`
+- belum ada loader bobot Keras ke model scratch
+- belum ada runner inference scratch
+- belum ada pembanding Keras vs scratch
 
-- belum ada parser caption Flickr8k,
-- belum ada preprocessing teks,
-- belum ada vocabulary builder,
-- belum ada token mapping,
-- belum ada padding pipeline,
-- belum ada metadata max caption length,
-- belum ada feature extractor Flickr8k dengan CNN frozen,
-- belum ada penyimpanan feature `.npy` untuk Flickr8k,
-- belum ada builder decoder Keras untuk RNN,
-- belum ada builder decoder Keras untuk LSTM,
-- belum ada eksperimen 6 variasi RNN,
-- belum ada eksperimen 6 variasi LSTM,
-- belum ada implementasi `Embedding` scratch,
-- belum ada implementasi `SimpleRNNCell` scratch,
-- belum ada implementasi `LSTMCell` scratch,
-- belum ada dense projection scratch,
-- belum ada dense output scratch,
-- belum ada greedy decoding pipeline,
-- belum ada evaluasi BLEU-4,
-- belum ada evaluasi METEOR,
-- belum ada benchmark waktu eksekusi,
-- belum ada qualitative analysis 10 contoh gambar.
+Kesimpulan jujur untuk CNN:
 
-### C. Yang belum ada untuk deliverables
+- **baseline training shared Keras sudah mulai terbentuk**
+- **bagian scratch CNN belum mulai**
+- **bagian non-shared juga belum mulai**
 
-- belum ada folder `doc` berisi laporan PDF,
-- belum ada notebook pengujian,
-- belum ada dokumentasi run pipeline,
-- belum ada pembagian tugas anggota kelompok pada README final untuk manusia.
+### B. Captioning yang masih belum selesai
 
-## Kesimpulan Status Repository
+Jalur captioning saat ini praktis masih kosong.
 
-Status repo saat ini masih setara dengan fase bootstrap awal.
+Belum ada:
 
-Secara praktis:
+- parser Flickr8k captions
+- preprocessing caption
+- vocabulary builder
+- token mapping
+- padding pipeline
+- metadata max caption length
+- feature extraction Flickr8k
+- encoder frozen pipeline
+- model Keras decoder RNN
+- model Keras decoder LSTM
+- eksperimen 12 variasi captioning
+- evaluasi BLEU-4
+- evaluasi METEOR
+- benchmark waktu
+- decoder scratch RNN
+- decoder scratch LSTM
+- pipeline autoregressive decoding
+- qualitative analysis 10 contoh
 
-- fondasi utility dasar sudah mulai ada,
-- implementasi inti model belum ada,
-- training belum ada,
-- eksperimen belum ada,
-- evaluasi belum ada,
-- laporan belum ada.
+### C. Deliverables yang masih belum selesai
 
-Kalau diukur terhadap spesifikasi keseluruhan, progress masih rendah dan mayoritas pekerjaan utama masih tersisa.
+Belum ada atau belum lengkap:
+
+- `doc/` berisi laporan final
+- README final untuk manusia
+- pembagian tugas anggota
+- notebook analisis formal
+- laporan eksperimen yang siap dikumpulkan
+
+## Ringkasan Status Saat Ini
+
+Kalau dipetakan per area:
+
+- utility umum: **sudah ada**
+- data pipeline CNN: **sudah ada**
+- config CNN: **sudah ada**
+- eksperimen grid CNN: **sudah ada**
+- model CNN shared Keras: **sudah ada**
+- training CNN shared Keras: **sudah ada**
+- evaluasi validation macro F1: **sudah ada**
+- feature extractor CNN: **belum ada**
+- CNN scratch: **belum ada**
+- CNN non-shared: **belum ada**
+- evaluasi test CNN lengkap: **belum jelas / belum lengkap**
+- captioning pipeline: **belum ada**
+- captioning scratch: **belum ada**
+- deliverables laporan: **belum ada**
+
+Secara keseluruhan:
+
+- repo **sudah maju signifikan di jalur CNN shared Keras**
+- repo **masih jauh dari selesai untuk seluruh spesifikasi**
+
+## Cara Menjalankan Yang Sudah Ada
+
+### 1. Validasi config CNN
+
+```bash
+python scripts/validate_cnn_config.py --config configs/cnn/base.json --check-data
+```
+
+Tujuan:
+
+- memastikan config valid
+- memastikan layout dataset sesuai config
+
+### 2. Inspeksi dataset CNN
+
+```bash
+python scripts/inspect_cnn_dataset.py --config configs/cnn/base.json --sample-batch
+```
+
+Tujuan:
+
+- melihat jumlah data train/validation/test
+- cek distribusi kelas
+- cek shape batch sample
+
+### 3. Dry run eksperimen CNN
+
+```bash
+python scripts/train_cnn.py --config configs/cnn/base.json --dry-run
+```
+
+Tujuan:
+
+- melihat daftar `run_id`
+- melihat jumlah parameter model untuk tiap eksperimen
+
+### 4. Train sebagian eksperimen CNN
+
+```bash
+python scripts/train_cnn.py --config configs/cnn/base.json --limit 2
+```
+
+### 5. Train run tertentu
+
+```bash
+python scripts/train_cnn.py --config configs/cnn/base.json --run-id shared_l1_f16_k3x3_max
+```
+
+Catatan:
+
+- format `run_id` bergantung hasil generator eksperimen
+- pakai `--dry-run` dulu untuk memastikan nama run
 
 ## Apa yang Harus Dilakukan Selanjutnya
 
-Bagian ini ditulis sebagai arahan kerja untuk AI lain. Fokusnya adalah langkah yang paling rasional, berurutan, dan minim dead-end.
+Urutan di bawah ini disusun berdasarkan status repo saat ini, jadi tidak lagi mengulang dari nol.
 
-### Prioritas 1: Rapikan Struktur Proyek
+### Prioritas 1: Rapikan dan stabilkan jalur CNN yang sudah ada
 
-Sebelum menambah banyak kode, rapikan struktur folder dulu.
+Sebelum lompat ke captioning, jalur CNN yang sudah dibangun perlu diselesaikan sampai benar-benar memenuhi spesifikasi shared Keras.
 
-Struktur yang disarankan:
+Langkah konkret:
 
-- `src/cnn/`
-- `src/cnn/keras/`
-- `src/cnn/scratch/`
-- `src/cnn/experiments/`
-- `src/captioning/preprocessing/`
-- `src/captioning/encoder/`
-- `src/captioning/keras/`
-- `src/captioning/scratch/`
-- `src/captioning/experiments/`
-- `src/metrics/`
-- `configs/cnn/`
-- `configs/captioning/`
-- `artifacts/models/`
-- `artifacts/features/`
-- `artifacts/histories/`
-- `artifacts/results/`
-- `notebooks/`
-- `doc/`
+1. tambahkan evaluasi **test split** resmi, bukan hanya validation
+2. tambahkan export prediction CSV/JSON untuk test split
+3. tambahkan plotting history training/validation loss per run
+4. tambahkan summary ranking 16 eksperimen berdasarkan macro F1 test
+5. tentukan eksperimen terbaik shared Keras
 
-Tujuan langkah ini:
+Output yang diinginkan:
 
-- memisahkan training Keras dari implementasi scratch,
-- mencegah file terlalu besar,
-- memudahkan AI lain bernavigasi,
-- memudahkan penyimpanan artifact eksperimen.
+- satu tabel ranking 16 eksperimen
+- satu kandidat model terbaik shared Keras
 
-### Prioritas 2: Selesaikan Jalur CNN Terlebih Dahulu
+### Prioritas 2: Kerjakan eksperimen non-shared CNN
 
-Pipeline CNN lebih cocok dijadikan tahap pertama karena:
+Setelah shared Keras beres, lanjut ke requirement non-shared.
 
-- scope-nya lebih jelas,
-- evaluasinya lebih sederhana daripada captioning,
-- sebagian utility yang dibuat bisa dipakai ulang.
+Langkah konkret:
 
-#### 2.1 Bangun data pipeline Intel dataset
+1. buat builder model Keras dengan `LocallyConnected2D`
+2. buat konfigurasi eksperimen non-shared yang setara dengan arsitektur terbaik shared
+3. train model non-shared
+4. evaluasi macro F1
+5. bandingkan jumlah parameter
+6. bandingkan loss curve
+7. tulis analisis efisiensi dan performa
 
-Yang perlu dibuat:
+### Prioritas 3: Implementasi CNN scratch
 
-- pembaca struktur direktori dataset,
-- list file path untuk train/validation/test,
-- mapping nama kelas ke integer,
-- helper batching,
-- metadata dataset ke JSON.
-
-Output yang diharapkan:
-
-- list sample train/val/test,
-- label mapping,
-- fungsi loader yang reusable.
-
-#### 2.2 Bangun training CNN Keras
-
-Yang perlu dibuat:
-
-- builder arsitektur CNN berbasis konfigurasi,
-- fungsi training,
-- fungsi evaluasi,
-- fungsi save model, save weights, save history.
-
-Hyperparameter yang harus bisa divariasikan:
-
-- jumlah conv layer,
-- jumlah filter,
-- ukuran kernel,
-- jenis pooling.
-
-Target minimum:
-
-- bisa menjalankan **16 eksperimen**.
-
-Setiap eksperimen sebaiknya menyimpan:
-
-- nama run,
-- config,
-- history,
-- bobot/model,
-- prediksi test,
-- metrik akhir.
-
-#### 2.3 Implementasi macro F1 dan plotting
-
-Yang perlu dibuat:
-
-- evaluasi `macro F1-score`,
-- opsi confusion matrix,
-- plotting training loss dan validation loss.
-
-#### 2.4 Implementasi feature extractor CNN
-
-Yang perlu dibuat:
-
-- load encoder Keras frozen,
-- ekstraksi feature per batch,
-- simpan `.npy`,
-- simpan mapping antara file dan feature.
-
-Walau feature extractor ini muncul di requirement CNN, implementasi ini juga akan sangat membantu jalur captioning.
-
-#### 2.5 Implementasi forward propagation CNN from scratch
+Ini requirement besar yang belum dikerjakan.
 
 Urutan implementasi yang disarankan:
 
@@ -577,253 +555,274 @@ Urutan implementasi yang disarankan:
 2. `Flatten`
 3. `ReLU`
 4. `Softmax`
-5. pooling
-6. global pooling
-7. `Conv2D`
-8. `LocallyConnected2D`
+5. `MaxPooling2D`
+6. `AveragePooling2D`
+7. `GlobalAveragePooling2D`
+8. `GlobalMaxPooling2D`
+9. `Conv2D`
+10. `LocallyConnected2D`
 
-Kebutuhan desain:
+Setelah layer tersedia:
 
-- semua berbasis NumPy,
-- setiap layer modular,
-- mudah load bobot dari Keras,
-- shape konsisten dengan Keras,
-- sebisa mungkin mendukung batch inference.
+1. buat loader bobot dari model Keras
+2. buat runner forward model scratch
+3. validasi output scratch vs Keras di beberapa sample kecil
+4. jalankan evaluasi test penuh
+5. hitung macro F1 scratch
+6. bandingkan Keras vs scratch
 
-#### 2.6 Validasi Keras vs scratch
+### Prioritas 4: Tambahkan feature extractor CNN
 
-Yang perlu dibuat:
-
-- loader model/bobot terbaik dari eksperimen CNN,
-- adaptor model Keras ke representasi scratch,
-- script inference pada split test,
-- perbandingan prediksi dan macro F1 antara Keras dan scratch.
-
-#### 2.7 Eksperimen shared vs non-shared
+Walau spesifikasi menyebut feature extractor pada bagian CNN utility, implementasi ini juga akan sangat membantu captioning.
 
 Yang perlu dibuat:
 
-- arsitektur non-shared dengan `LocallyConnected2D`,
-- training/evaluasi,
-- hitung jumlah parameter,
-- bandingkan performa dan efisiensi.
+- load encoder CNN frozen
+- ekstraksi feature batch
+- simpan `.npy`
+- simpan mapping file ke feature
 
-### Prioritas 3: Kerjakan Jalur Captioning
+Saran:
 
-Setelah CNN stabil, baru lanjut ke captioning.
+- letakkan di jalur terpisah, misalnya `src/cnn/features.py`
+- buat script CLI khusus
 
-#### 3.1 Bangun preprocessing caption Flickr8k
+### Prioritas 5: Mulai jalur captioning dari preprocessing dan feature extraction
 
-Yang perlu dibuat:
+Jangan mulai dari decoder scratch dulu. Mulai dari data dan feature extraction.
 
-- parser caption file,
-- lowercase,
-- hapus tanda baca,
-- tambah token `<start>` dan `<end>`,
-- bangun vocabulary dari train set,
-- token to id,
-- id to token,
-- padding sequence,
-- simpan vocabulary dan metadata.
+Urutan yang disarankan:
 
-Output penting yang disarankan:
+1. parsing caption Flickr8k
+2. cleaning text
+3. tokenisasi
+4. vocabulary
+5. padding
+6. metadata max length
+7. feature extraction image dengan encoder frozen
 
-- `vocab.json`,
-- `token_to_id.json`,
-- `id_to_token.json`,
-- `caption_metadata.json`,
-- file sequence numerik untuk training.
+### Prioritas 6: Training decoder Keras captioning
 
-#### 3.2 Ekstraksi feature Flickr8k
+Setelah preprocessing dan feature extraction siap:
 
-Yang perlu dibuat:
+1. buat builder decoder `SimpleRNN`
+2. buat builder decoder `LSTM`
+3. implement teacher forcing pre-inject
+4. jalankan 6 eksperimen RNN
+5. jalankan 6 eksperimen LSTM
+6. simpan history, metric, bobot, dan waktu
 
-- pilih backbone pretrained, misalnya `InceptionV3` atau `VGG16`,
-- hapus head klasifikasi,
-- freeze bobot,
-- ekstrak feature seluruh image,
-- simpan ke `.npy`,
-- simpan pemetaan image id ke feature.
+### Prioritas 7: Scratch decoder captioning
 
-#### 3.3 Training decoder Keras untuk RNN dan LSTM
-
-Yang perlu dibuat:
-
-- builder decoder `SimpleRNN`,
-- builder decoder `LSTM`,
-- support recurrent layers yang bervariasi,
-- support hidden size yang bervariasi,
-- implement teacher forcing sesuai spesifikasi pre-inject.
-
-Semua eksperimen harus menyimpan:
-
-- config,
-- history,
-- weights,
-- metric,
-- waktu eksekusi.
-
-#### 3.4 Implementasi scratch decoder
-
-Yang perlu dibuat:
-
-- `Embedding`,
-- `DenseProjection`,
-- `DenseOutput`,
-- `SimpleRNNCell`,
-- `LSTMCell`,
-- wrapper decoder sequence,
-- greedy decoding.
-
-Urutan implementasi yang disarankan:
+Setelah baseline Keras captioning stabil:
 
 1. `Embedding`
 2. `DenseProjection`
 3. `DenseOutput`
 4. `SimpleRNNCell`
 5. `LSTMCell`
-6. sequence wrapper
-7. inference autoregressive
+6. greedy decoding
+7. evaluasi BLEU-4, METEOR, waktu
 
-#### 3.5 Implementasi pipeline raw image ke caption
+## Checklist Requirement Wajib
 
-Yang perlu dibuat:
+### CNN
 
-- load dan preprocess image,
-- ekstrak feature dengan encoder,
-- project feature ke embedding space,
-- decode token demi token,
-- stop di `<end>` atau `max_length`.
+- [x] utility image dasar
+- [x] data pipeline Intel dataset
+- [x] config eksperimen CNN
+- [x] generator 16 eksperimen CNN
+- [x] builder CNN shared Keras
+- [x] training pipeline CNN shared Keras
+- [x] evaluasi validation macro F1
+- [ ] evaluasi test split resmi
+- [ ] feature extractor `.npy`
+- [ ] builder CNN non-shared Keras
+- [ ] eksperimen shared vs non-shared
+- [ ] implementasi scratch CNN
+- [ ] pembanding Keras vs scratch
 
-Minimal ada dua pipeline scratch:
+### Captioning
 
-- image -> encoder -> RNN decoder,
-- image -> encoder -> LSTM decoder.
+- [ ] preprocessing Flickr8k
+- [ ] feature extraction Flickr8k
+- [ ] decoder Keras RNN
+- [ ] decoder Keras LSTM
+- [ ] 12 eksperimen captioning
+- [ ] decoder scratch RNN
+- [ ] decoder scratch LSTM
+- [ ] BLEU-4
+- [ ] METEOR
+- [ ] benchmark waktu
+- [ ] qualitative analysis
+- [ ] eksperimen max caption length
 
-#### 3.6 Evaluasi captioning
+### Deliverables
 
-Yang perlu dibuat:
+- [ ] folder `doc` final
+- [ ] laporan PDF final
+- [ ] README final untuk pengumpulan
+- [ ] pembagian tugas anggota
 
-- BLEU-4,
-- METEOR,
-- waktu eksekusi,
-- penyimpanan caption hasil prediksi,
-- analisis kualitatif 10 contoh.
+## Cara Mengerjakan Bonus
 
-#### 3.7 Eksperimen max caption length
+Bagian ini sengaja dibuat lebih operasional supaya AI lain bisa langsung lanjut.
 
-Yang perlu dibuat:
+### 1. Bonus Grad-CAM dan Visualisasi Feature Map
 
-- pilih arsitektur terbaik dari empat kelompok:
-- RNN scratch,
-- LSTM scratch,
-- RNN Keras,
-- LSTM Keras,
-- lalu variasikan max caption length minimal 3 nilai,
-- ukur pengaruh terhadap BLEU-4.
+Tujuan:
 
-## Checklist Requirement Minimum
+- menunjukkan region gambar yang paling berpengaruh pada prediksi CNN
+- membantu analisis model CNN
 
-AI lain bisa memakai checklist ini untuk memastikan requirement wajib sudah terpenuhi.
+Langkah kerja:
 
-### Checklist CNN
+1. pilih model CNN shared terbaik hasil eksperimen
+2. identifikasi layer konvolusi terakhir
+3. buat fungsi untuk mengambil activation map layer tersebut
+4. untuk **feature map visualization**, tampilkan beberapa channel activation sebagai grid gambar
+5. untuk **Grad-CAM**, hitung gradient skor kelas target terhadap activation map layer terakhir
+6. lakukan global average pooling terhadap gradient
+7. bobotkan activation map dengan gradient hasil pooling
+8. ambil `ReLU` hasil akhirnya
+9. resize heatmap ke ukuran gambar asli
+10. overlay heatmap ke gambar input
+11. simpan hasil visualisasi untuk beberapa contoh benar dan salah klasifikasi
 
-- [ ] data pipeline Intel dataset selesai
-- [ ] utility image dasar siap dipakai
-- [ ] feature extractor `.npy` tersedia
-- [ ] builder CNN Keras tersedia
-- [ ] 16 eksperimen CNN selesai
-- [ ] history dan weights semua eksperimen tersimpan
-- [ ] evaluasi macro F1 tersedia
-- [ ] implementasi `Conv2D` scratch selesai
-- [ ] implementasi `LocallyConnected2D` scratch selesai
-- [ ] implementasi pooling/global pooling/flatten/dense/aktivasi scratch selesai
-- [ ] pembanding Keras vs scratch selesai
-- [ ] pembanding shared vs non-shared selesai
+Output yang disarankan:
 
-### Checklist Captioning
+- folder `reports/cnn/gradcam/`
+- folder `reports/cnn/feature_maps/`
 
-- [ ] preprocessing caption Flickr8k selesai
-- [ ] vocabulary dan metadata caption tersimpan
-- [ ] feature extraction Flickr8k selesai
-- [ ] 6 eksperimen RNN Keras selesai
-- [ ] 6 eksperimen LSTM Keras selesai
-- [ ] implementasi `Embedding` scratch selesai
-- [ ] implementasi `SimpleRNNCell` scratch selesai
-- [ ] implementasi `LSTMCell` scratch selesai
-- [ ] dense projection dan dense output scratch selesai
-- [ ] pipeline caption generation scratch selesai
-- [ ] BLEU-4 tersedia
-- [ ] METEOR tersedia
-- [ ] benchmark waktu eksekusi tersedia
-- [ ] analisis kualitatif minimal 10 contoh tersedia
-- [ ] eksperimen max caption length selesai
+### 2. Bonus Captioning Init-Inject
 
-### Checklist Deliverables
+Tujuan:
 
-- [ ] folder `src` lengkap
-- [ ] folder `doc` ada
-- [ ] laporan PDF ada
-- [ ] README final untuk manusia ada
-- [ ] pembagian tugas anggota ada
+- membandingkan arsitektur **pre-inject** wajib dengan **init-inject** bonus
 
-## Bonus Checklist
+Konsep:
 
-Bagian ini opsional. Kerjakan hanya jika requirement wajib sudah aman.
+- pada pre-inject, feature CNN menjadi input timestep sebelum `<start>`
+- pada init-inject, feature gambar dipakai untuk menginisialisasi hidden state atau digabung setelah decoder memproses prefix, sesuai variasi yang dipilih
 
-- [ ] Grad-CAM / visualisasi feature map
-- [ ] captioning init-inject
-- [ ] beam search decoder
-- [ ] batch inference scratch umum
-- [ ] backward propagation scratch
+Langkah kerja:
+
+1. pertahankan pipeline preprocessing dan feature extraction yang sama
+2. buat builder decoder alternatif untuk init-inject
+3. putuskan mekanisme injeksi:
+- opsi A: feature diproyeksikan untuk menjadi hidden state awal
+- opsi B: feature digabung dengan representasi caption setelah recurrent stack
+4. latih dengan konfigurasi eksperimen yang sama seperti pre-inject terbaik
+5. evaluasi BLEU-4, METEOR, dan waktu
+6. bandingkan hasil dengan arsitektur pre-inject wajib
+7. analisis apakah image information lebih efektif dimasukkan di awal hidden state atau di input sequence
+
+Output yang disarankan:
+
+- tabel perbandingan pre-inject vs init-inject
+
+### 3. Bonus Beam Search Decoder
+
+Tujuan:
+
+- mengganti greedy decoding dengan pencarian caption yang lebih baik
+
+Langkah kerja:
+
+1. pastikan greedy decoding captioning sudah benar dulu
+2. buat fungsi beam search dengan parameter `beam_width`, misalnya `3` atau `5`
+3. pada tiap timestep:
+- simpan beberapa partial caption terbaik
+- perluas masing-masing partial caption dengan token kandidat teratas
+- hitung skor akumulatif log probability
+4. gunakan normalisasi panjang jika hasil terlalu bias ke caption pendek
+5. stop saat semua beam selesai dengan token `<end>` atau mencapai `max_length`
+6. bandingkan hasil beam search dengan greedy pada subset test yang sama
+7. catat BLEU-4, METEOR, dan waktu tambahan
+
+Output yang disarankan:
+
+- tabel `greedy vs beam search`
+- beberapa contoh caption yang membaik dan yang memburuk
+
+### 4. Bonus Batch Inference Scratch
+
+Tujuan:
+
+- membuat seluruh forward scratch menerima batch input, bukan cuma satu sampel
+
+Langkah kerja:
+
+1. audit semua layer scratch agar shape input jelas
+2. tetapkan konvensi tensor:
+- CNN: `NHWC`
+- sequence: `batch, time, feature`
+3. ubah operasi yang masih scalar/per-sample menjadi operasi batch
+4. verifikasi hasil batch size `1` sama dengan mode single sample
+5. uji batch size `2`, `4`, `8`
+6. cek apakah output tetap identik secara numerik terhadap Keras
+
+Catatan:
+
+- bonus ini sangat berguna karena sekaligus membuat implementasi scratch lebih rapi dan bisa dipakai untuk evaluasi lebih cepat
+
+### 5. Bonus Backward Propagation Scratch
+
+Tujuan:
+
+- melatih model atau minimal membuktikan turunan backward untuk layer scratch
+
+Langkah kerja:
+
+1. simpan cache forward untuk setiap layer
+2. implementasikan backward untuk layer paling sederhana dulu:
+- Dense
+- ReLU
+- Flatten
+3. lanjut ke pooling
+4. lanjut ke Conv2D
+5. jika waktu cukup, lanjut ke recurrent cells
+6. buat gradient check numerik pada contoh tensor kecil
+7. cocokkan gradient scratch dengan finite difference approximation
+
+Catatan:
+
+- ini bonus paling berat
+- jangan mulai dari sini sebelum requirement wajib benar-benar aman
 
 ## Risiko dan Titik Sulit
 
-Bagian yang kemungkinan paling sulit:
+Titik sulit utama:
 
-- `LocallyConnected2D` scratch,
-- konsistensi shape dan format bobot Keras,
-- validasi numerik antara Keras dan scratch,
-- implementasi pre-inject yang benar untuk captioning,
-- decoding autoregressive RNN/LSTM scratch,
-- manajemen artifact eksperimen yang banyak,
-- waktu training yang besar jika eksperimen tidak diotomasi.
+- `LocallyConnected2D` scratch
+- menjaga konsistensi shape dan format bobot Keras
+- membangun evaluasi test CNN yang rapi di atas pipeline training sekarang
+- menyusun arsitektur captioning pre-inject dengan benar
+- membuat decoder scratch autoregressive
+- mengelola banyak artifact eksperimen
 
 ## Saran untuk AI Lain
 
-- Jangan langsung lompat ke bonus.
-- Jangan mulai dari notebook besar yang mencampur semua hal.
-- Bangun modul Python yang terpisah untuk preprocessing, training, scratch, dan evaluasi.
-- Simpan semua artifact eksperimen agar tidak perlu training ulang.
-- Uji layer scratch secara kecil sebelum mencoba pipeline penuh.
-- Selesaikan CNN sampai stabil, lalu baru captioning.
-- Pastikan setiap eksperimen punya config dan output yang terdokumentasi.
-
-## Ringkasan Singkat Status Saat Ini
-
-Status current repo:
-
-- utility image dasar: **sudah ada**
-- utility I/O: **sudah ada**
-- utility seed: **sudah ada**
-- training CNN Keras: **belum ada**
-- CNN scratch: **belum ada**
-- eksperimen CNN: **belum ada**
-- preprocessing caption: **belum ada**
-- feature extraction captioning: **belum ada**
-- decoder Keras RNN/LSTM: **belum ada**
-- decoder scratch RNN/LSTM: **belum ada**
-- evaluasi F1/BLEU/METEOR: **belum ada**
-- laporan dan dokumentasi final: **belum ada**
+- jangan reset atau hapus perubahan teman tanpa alasan
+- lanjutkan fondasi CNN yang sudah ada, jangan bangun ulang dari nol
+- selesaikan shared Keras sampai evaluasi test dan ranking eksperimen beres
+- setelah itu baru non-shared dan scratch CNN
+- jangan masuk ke captioning sebelum jalur CNN shared benar-benar stabil
+- simpan semua artifact eksperimen
+- buat script kecil untuk evaluasi dan plotting, jangan menumpuk semua logic di notebook
 
 ## Catatan Penutup
 
-Repository ini baru punya fondasi awal berupa utility. Hampir semua bagian inti tugas besar masih harus dibangun.
+Repository ini sekarang berada pada fase:
 
-Kalau AI lain mengambil alih dari titik ini, strategi terbaik adalah:
+- **CNN shared Keras sudah mulai matang secara fondasi**
+- **CNN non-shared dan scratch belum ada**
+- **captioning hampir belum mulai**
 
-1. rapikan struktur repo,
-2. selesaikan seluruh jalur CNN wajib,
-3. lanjut ke seluruh jalur captioning wajib,
-4. baru pertimbangkan bonus,
-5. terakhir rapikan laporan dan dokumentasi final.
+Strategi terbaik dari titik ini:
+
+1. selesaikan evaluasi dan eksperimen CNN shared
+2. kerjakan CNN non-shared
+3. kerjakan CNN scratch
+4. baru masuk captioning
+5. terakhir, tambah bonus jika waktu masih cukup

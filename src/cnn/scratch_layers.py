@@ -31,21 +31,10 @@ class Conv2DLayer:
         padded = _pad_input(batch, (kernel_height, kernel_width), self.strides, self.padding)
         out_height = _output_size(batch.shape[1], kernel_height, stride_height, self.padding)
         out_width = _output_size(batch.shape[2], kernel_width, stride_width, self.padding)
-        output = np.empty((batch.shape[0], out_height, out_width, out_channels), dtype=np.float32)
-
-        for row in range(out_height):
-            row_start = row * stride_height
-            for col in range(out_width):
-                col_start = col * stride_width
-                patch = padded[
-                    :,
-                    row_start : row_start + kernel_height,
-                    col_start : col_start + kernel_width,
-                    :,
-                ]
-                output[:, row, col, :] = (
-                    np.tensordot(patch, kernel, axes=([1, 2, 3], [0, 1, 2])) + bias
-                )
+        windows = _patch_windows(padded, (kernel_height, kernel_width), self.strides)
+        windows = windows[:, :out_height, :out_width, :, :, :]
+        output = np.tensordot(windows, kernel, axes=([3, 4, 5], [0, 1, 2])) + bias
+        output = output.astype(np.float32, copy=False)
 
         return apply_activation(output, self.activation)
 
@@ -70,20 +59,12 @@ class LocallyConnected2DLayer:
         out_width = _output_size(batch.shape[2], kernel_width, stride_width, self.padding)
         out_channels = kernel.shape[-1]
         bias = _local_bias(self.bias, out_height, out_width, out_channels)
-        output = np.empty((batch.shape[0], out_height, out_width, out_channels), dtype=np.float32)
-
-        for row in range(out_height):
-            row_start = row * stride_height
-            for col in range(out_width):
-                col_start = col * stride_width
-                location = row * out_width + col
-                patch = padded[
-                    :,
-                    row_start : row_start + kernel_height,
-                    col_start : col_start + kernel_width,
-                    :,
-                ].reshape(batch.shape[0], -1)
-                output[:, row, col, :] = patch @ kernel[location] + bias[location]
+        windows = _patch_windows(padded, self.kernel_size, self.strides)
+        windows = windows[:, :out_height, :out_width, :, :, :]
+        patches = windows.reshape(batch.shape[0], out_height * out_width, -1)
+        output = np.einsum("nlf,lfo->nlo", patches, kernel) + bias
+        output = output.reshape(batch.shape[0], out_height, out_width, out_channels)
+        output = output.astype(np.float32, copy=False)
 
         return apply_activation(output, self.activation)
 
@@ -103,26 +84,22 @@ class Pooling2DLayer:
         padded = _pad_pool_input(batch, self.pool_size, self.strides, self.padding, self.mode)
         out_height = _output_size(batch.shape[1], pool_height, stride_height, self.padding)
         out_width = _output_size(batch.shape[2], pool_width, stride_width, self.padding)
-        output = np.empty((batch.shape[0], out_height, out_width, batch.shape[-1]), dtype=np.float32)
+        windows = np.lib.stride_tricks.sliding_window_view(
+            padded,
+            (pool_height, pool_width),
+            axis=(1, 2),
+        )
+        windows = windows[:, ::stride_height, ::stride_width, :, :, :]
+        windows = windows[:, :out_height, :out_width, :, :, :]
 
-        for row in range(out_height):
-            row_start = row * stride_height
-            for col in range(out_width):
-                col_start = col * stride_width
-                patch = padded[
-                    :,
-                    row_start : row_start + pool_height,
-                    col_start : col_start + pool_width,
-                    :,
-                ]
-                if self.mode == "max":
-                    output[:, row, col, :] = np.max(patch, axis=(1, 2))
-                elif self.mode == "average":
-                    output[:, row, col, :] = np.mean(patch, axis=(1, 2))
-                else:
-                    raise ValueError(f"Unsupported pooling mode: {self.mode}")
+        if self.mode == "max":
+            output = np.max(windows, axis=(4, 5))
+        elif self.mode == "average":
+            output = np.mean(windows, axis=(4, 5))
+        else:
+            raise ValueError(f"Unsupported pooling mode: {self.mode}")
 
-        return output
+        return output.astype(np.float32, copy=False)
 
 
 @dataclass(frozen=True)
@@ -230,6 +207,22 @@ def _pad_pool_input(
         mode="constant",
         constant_values=fill_value,
     )
+
+
+def _patch_windows(
+    x: np.ndarray,
+    kernel_size: tuple[int, int],
+    strides: tuple[int, int],
+) -> np.ndarray:
+    kernel_height, kernel_width = kernel_size
+    stride_height, stride_width = strides
+    windows = np.lib.stride_tricks.sliding_window_view(
+        x,
+        (kernel_height, kernel_width),
+        axis=(1, 2),
+    )
+    windows = windows[:, ::stride_height, ::stride_width, :, :, :]
+    return np.transpose(windows, (0, 1, 2, 4, 5, 3))
 
 
 def _padding_pair(input_size: int, kernel_size: int, stride: int, padding: str) -> tuple[int, int]:

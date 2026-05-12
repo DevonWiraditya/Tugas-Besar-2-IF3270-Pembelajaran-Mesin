@@ -18,6 +18,8 @@ from src.cnn.keras_models import build_shared_cnn_model, compile_cnn_model
 from src.utils.io import read_json, write_csv, write_history_csv, write_json
 from src.utils.random import set_global_seed
 
+_PROJECT_ROOT = Path.cwd().resolve()
+
 
 class CNNImageSequence(tf.keras.utils.Sequence):
     def __init__(
@@ -73,7 +75,7 @@ def train_experiment(
         metrics = read_json(run_dir / "metrics.json")
         return {
             "run_id": experiment.run_id,
-            "model_dir": str(run_dir),
+            "model_dir": _to_relative_path(run_dir),
             "metrics": metrics,
             "status": "skipped",
         }
@@ -111,7 +113,7 @@ def train_experiment(
     save_run_artifacts(model, history.history, metrics, experiment, config, run_dir)
     return {
         "run_id": experiment.run_id,
-        "model_dir": str(run_dir),
+        "model_dir": _to_relative_path(run_dir),
         "metrics": metrics,
         "status": "trained",
     }
@@ -224,3 +226,10 @@ def write_training_summary(results: Iterable[dict], path: Path) -> None:
         ],
         rows,
     )
+
+
+def _to_relative_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(_PROJECT_ROOT))
+    except ValueError:
+        return str(path)

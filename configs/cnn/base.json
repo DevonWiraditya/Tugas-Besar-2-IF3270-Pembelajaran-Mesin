@@ -1,0 +1,60 @@
+{
+  "project": "cnn_intel_image_classification",
+  "seed": 42,
+  "data": {
+    "dataset_root": "dataset",
+    "train_dir": "dataset/seg_train",
+    "test_dir": "dataset/seg_test",
+    "pred_dir": "dataset/seg_pred",
+    "validation_split": 0.2,
+    "image_size": [128, 128],
+    "channels": 3,
+    "data_format": "channels_last",
+    "color_mode": "rgb",
+    "normalization": "zero_one",
+    "class_names": [
+      "buildings",
+      "forest",
+      "glacier",
+      "mountain",
+      "sea",
+      "street"
+    ]
+  },
+  "training": {
+    "batch_size": 32,
+    "epochs": 20,
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "loss": "sparse_categorical_crossentropy",
+    "comparison_metric": "macro_f1"
+  },
+  "architecture_defaults": {
+    "conv_activation": "relu",
+    "dense_activation": "relu",
+    "output_activation": "softmax",
+    "conv_padding": "valid",
+    "conv_strides": [1, 1],
+    "pool_padding": "valid",
+    "pool_size": [2, 2],
+    "pool_strides": [2, 2],
+    "dense_units": [128]
+  },
+  "experiment_grid": {
+    "conv_layer_counts": [1, 2],
+    "filter_profiles": [
+      [16, 32],
+      [32, 64]
+    ],
+    "kernel_profiles": [
+      [[3, 3], [3, 3]],
+      [[5, 5], [3, 3]]
+    ],
+    "pooling_types": ["max", "average"]
+  },
+  "output": {
+    "artifacts_dir": "artifacts/cnn",
+    "models_dir": "models/cnn",
+    "reports_dir": "reports/cnn"
+  }
+}

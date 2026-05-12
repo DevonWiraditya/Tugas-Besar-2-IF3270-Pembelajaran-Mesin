@@ -205,7 +205,7 @@ def write_training_summary(results: Iterable[dict], path: Path) -> None:
             [
                 result["run_id"],
                 result.get("status", ""),
-                result["model_dir"],
+                _portable_path(result["model_dir"]),
                 metrics.get("loss", ""),
                 metrics.get("sparse_categorical_accuracy", ""),
                 metrics.get("macro_f1", ""),
@@ -224,3 +224,11 @@ def write_training_summary(results: Iterable[dict], path: Path) -> None:
         ],
         rows,
     )
+
+
+def _portable_path(path: str | Path) -> str:
+    value = Path(path)
+    try:
+        return value.relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        return value.as_posix()

@@ -7,10 +7,23 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 import tensorflow as tf
 
 from src.cnn.config import CNNConfig
-from src.cnn.experiments import CNNExperiment
+from src.cnn.experiments import CNNExperiment, run_id_for_parameter_sharing
+from src.cnn.local_layers import LocallyConnected2D
 
 
 def build_shared_cnn_model(config: CNNConfig, experiment: CNNExperiment) -> tf.keras.Model:
+    return build_cnn_model(config, experiment, parameter_sharing="shared")
+
+
+def build_nonshared_cnn_model(config: CNNConfig, experiment: CNNExperiment) -> tf.keras.Model:
+    return build_cnn_model(config, experiment, parameter_sharing="nonshared")
+
+
+def build_cnn_model(
+    config: CNNConfig,
+    experiment: CNNExperiment,
+    parameter_sharing: str = "shared",
+) -> tf.keras.Model:
     defaults = config.architecture_defaults
     inputs = tf.keras.layers.Input(shape=config.input_shape, name="image")
     x = inputs
@@ -19,13 +32,12 @@ def build_shared_cnn_model(config: CNNConfig, experiment: CNNExperiment) -> tf.k
         zip(experiment.filters, experiment.kernel_sizes),
         start=1,
     ):
-        x = tf.keras.layers.Conv2D(
+        x = _convolution_layer(
+            parameter_sharing=parameter_sharing,
             filters=filters,
             kernel_size=kernel_size,
-            strides=defaults.conv_strides,
-            padding=defaults.conv_padding,
-            activation=defaults.conv_activation,
-            name=f"conv2d_{index}",
+            config=config,
+            index=index,
         )(x)
         x = _pooling_layer(experiment.pooling_type, config, index)(x)
 
@@ -42,7 +54,11 @@ def build_shared_cnn_model(config: CNNConfig, experiment: CNNExperiment) -> tf.k
         activation=defaults.output_activation,
         name="predictions",
     )(x)
-    return tf.keras.Model(inputs=inputs, outputs=outputs, name=experiment.run_id)
+    return tf.keras.Model(
+        inputs=inputs,
+        outputs=outputs,
+        name=_model_name(experiment, parameter_sharing),
+    )
 
 
 def compile_cnn_model(model: tf.keras.Model, config: CNNConfig) -> tf.keras.Model:
@@ -73,6 +89,32 @@ def _pooling_layer(
     if pooling_type == "average":
         return tf.keras.layers.AveragePooling2D(**kwargs)
     raise ValueError(f"Unsupported pooling_type: {pooling_type}")
+
+
+def _convolution_layer(
+    parameter_sharing: str,
+    filters: int,
+    kernel_size: tuple[int, int],
+    config: CNNConfig,
+    index: int,
+) -> tf.keras.layers.Layer:
+    defaults = config.architecture_defaults
+    kwargs = {
+        "filters": filters,
+        "kernel_size": kernel_size,
+        "strides": defaults.conv_strides,
+        "padding": defaults.conv_padding,
+        "activation": defaults.conv_activation,
+    }
+    if parameter_sharing == "shared":
+        return tf.keras.layers.Conv2D(name=f"conv2d_{index}", **kwargs)
+    if parameter_sharing == "nonshared":
+        return LocallyConnected2D(name=f"locally_connected2d_{index}", **kwargs)
+    raise ValueError(f"Unsupported parameter_sharing: {parameter_sharing}")
+
+
+def _model_name(experiment: CNNExperiment, parameter_sharing: str) -> str:
+    return run_id_for_parameter_sharing(experiment, parameter_sharing)
 
 
 def _optimizer(config: CNNConfig) -> tf.keras.optimizers.Optimizer:

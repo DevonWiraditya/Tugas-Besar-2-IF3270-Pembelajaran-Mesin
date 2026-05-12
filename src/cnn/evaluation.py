@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import csv
-import os
 from pathlib import Path
 import time
 
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-
 import numpy as np
 from sklearn.metrics import f1_score
-import tensorflow as tf
 
 from src.cnn.config import CNNConfig
 from src.cnn.data import iter_record_batches, load_cnn_dataset
+from src.cnn.experiments import get_cnn_experiment, parameter_sharing_from_run_id
+from src.cnn.keras_models import build_cnn_model
 from src.cnn.scratch_model import build_scratch_model_from_keras
 from src.utils.io import write_csv
 
@@ -29,12 +27,19 @@ def compare_keras_and_scratch(
     selected_run_id = run_id or select_best_run_id(
         Path(summary_path) if summary_path else config.output.reports_dir / "shared_training_summary.csv"
     )
-    model_path = config.output.models_dir / selected_run_id / "model.keras"
+    weights_path = config.output.models_dir / selected_run_id / "weights.weights.h5"
 
-    if not model_path.exists():
-        raise FileNotFoundError(f"Missing trained model: {model_path}")
+    if not weights_path.exists():
+        raise FileNotFoundError(f"Missing trained weights: {weights_path}")
 
-    keras_model = tf.keras.models.load_model(model_path, compile=False)
+    parameter_sharing = parameter_sharing_from_run_id(selected_run_id)
+    experiment = get_cnn_experiment(config, selected_run_id)
+    keras_model = build_cnn_model(
+        config,
+        experiment,
+        parameter_sharing=parameter_sharing,
+    )
+    keras_model.load_weights(weights_path)
     scratch_model = build_scratch_model_from_keras(keras_model)
     records = _split_records(config, split)
     if max_samples is not None:
@@ -78,6 +83,7 @@ def compare_keras_and_scratch(
 
     return {
         "run_id": selected_run_id,
+        "parameter_sharing": parameter_sharing,
         "split": split,
         "samples": len(labels),
         "batches": batches,
@@ -106,7 +112,7 @@ def compare_keras_and_scratch(
             )
         ),
         "seconds": time.perf_counter() - started_at,
-        "model_path": _portable_path(model_path),
+        "weights_path": _portable_path(weights_path),
     }
 
 
@@ -127,6 +133,7 @@ def select_best_run_id(path: Path) -> str:
 def write_comparison_report(result: dict[str, float | int | str], path: str | Path) -> None:
     header = [
         "run_id",
+        "parameter_sharing",
         "split",
         "samples",
         "batches",
@@ -139,7 +146,7 @@ def write_comparison_report(result: dict[str, float | int | str], path: str | Pa
         "max_abs_diff",
         "mean_abs_diff",
         "seconds",
-        "model_path",
+        "weights_path",
     ]
     write_csv(path, header, [[result[key] for key in header]])
 

@@ -1,0 +1,7 @@
+run_id,split,image_path,true_class,layer_name,predicted_class,is_correct,confidence,feature_maps_path,grad_cam_path
+shared_l2_f32-64_k3x3-3x3_max,test,dataset/seg_test/buildings/20057.jpg,buildings,conv2d_2,buildings,True,1.0,reports/cnn/visualizations/buildings_20057_conv2d_2_feature_maps.png,reports/cnn/visualizations/buildings_20057_conv2d_2_grad_cam.png
+shared_l2_f32-64_k3x3-3x3_max,test,dataset/seg_test/forest/20056.jpg,forest,conv2d_2,forest,True,0.9997453093528748,reports/cnn/visualizations/forest_20056_conv2d_2_feature_maps.png,reports/cnn/visualizations/forest_20056_conv2d_2_grad_cam.png
+shared_l2_f32-64_k3x3-3x3_max,test,dataset/seg_test/glacier/20059.jpg,glacier,conv2d_2,glacier,True,1.0,reports/cnn/visualizations/glacier_20059_conv2d_2_feature_maps.png,reports/cnn/visualizations/glacier_20059_conv2d_2_grad_cam.png
+shared_l2_f32-64_k3x3-3x3_max,test,dataset/seg_test/mountain/20058.jpg,mountain,conv2d_2,sea,False,0.4487362504005432,reports/cnn/visualizations/mountain_20058_conv2d_2_feature_maps.png,reports/cnn/visualizations/mountain_20058_conv2d_2_grad_cam.png
+shared_l2_f32-64_k3x3-3x3_max,test,dataset/seg_test/sea/20072.jpg,sea,conv2d_2,sea,True,0.9999969005584717,reports/cnn/visualizations/sea_20072_conv2d_2_feature_maps.png,reports/cnn/visualizations/sea_20072_conv2d_2_grad_cam.png
+shared_l2_f32-64_k3x3-3x3_max,test,dataset/seg_test/street/20066.jpg,street,conv2d_2,forest,False,0.9999113082885742,reports/cnn/visualizations/street_20066_conv2d_2_feature_maps.png,reports/cnn/visualizations/street_20066_conv2d_2_grad_cam.png

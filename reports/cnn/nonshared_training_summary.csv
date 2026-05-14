@@ -1,0 +1,2 @@
+run_id,base_run_id,parameter_sharing,status,model_dir,loss,sparse_categorical_accuracy,macro_f1
+nonshared_l2_f32-64_k3x3-3x3_max,shared_l2_f32-64_k3x3-3x3_max,nonshared,trained,models/cnn/nonshared_l2_f32-64_k3x3-3x3_max,0.8870340585708618,0.6749821901321411,0.674526520365041

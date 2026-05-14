@@ -1,0 +1,2 @@
+rank,run_id,status,conv_layer_count,filter_profile,kernel_profile,pooling_type,params,loss,sparse_categorical_accuracy,macro_f1,model_dir
+1,shared_l2_f32-64_k3x3-3x3_max,trained,2,32-64,3x3-3x3,max,7393094,1.5895211696624756,0.7854597568511963,0.7861723273206657,models/cnn/shared_l2_f32-64_k3x3-3x3_max

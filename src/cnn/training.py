@@ -70,6 +70,9 @@ def train_experiment(
     batch_size: int | None = None,
     skip_existing: bool = False,
     parameter_sharing: str = "shared",
+    early_stopping_patience: int | None = None,
+    early_stopping_min_delta: float = 0.0,
+    verbose: int = 1,
 ) -> dict:
     set_global_seed(config.seed)
     run_id = run_id_for_parameter_sharing(experiment, parameter_sharing)
@@ -115,7 +118,8 @@ def train_experiment(
         train_sequence,
         validation_data=validation_sequence,
         epochs=fit_epochs,
-        verbose=1,
+        callbacks=_training_callbacks(early_stopping_patience, early_stopping_min_delta),
+        verbose=verbose,
     )
 
     metrics = evaluate_sequence(model, validation_sequence)
@@ -145,6 +149,9 @@ def train_experiments(
     batch_size: int | None = None,
     skip_existing: bool = False,
     parameter_sharing: str = "shared",
+    early_stopping_patience: int | None = None,
+    early_stopping_min_delta: float = 0.0,
+    verbose: int = 1,
 ) -> list[dict]:
     selected = iter_cnn_experiments(config) if experiments is None else tuple(experiments)
     results: list[dict] = []
@@ -158,6 +165,9 @@ def train_experiments(
                 batch_size=batch_size,
                 skip_existing=skip_existing,
                 parameter_sharing=parameter_sharing,
+                early_stopping_patience=early_stopping_patience,
+                early_stopping_min_delta=early_stopping_min_delta,
+                verbose=verbose,
             )
         )
 
@@ -188,6 +198,25 @@ def evaluate_sequence(
         "sparse_categorical_accuracy": float(accuracy),
         "macro_f1": float(f1_score(y_true, y_pred, average="macro")),
     }
+
+
+def _training_callbacks(
+    early_stopping_patience: int | None,
+    early_stopping_min_delta: float,
+) -> list[tf.keras.callbacks.Callback]:
+    callbacks: list[tf.keras.callbacks.Callback] = [
+        tf.keras.callbacks.TerminateOnNaN(),
+    ]
+    if early_stopping_patience is not None:
+        callbacks.append(
+            tf.keras.callbacks.EarlyStopping(
+                monitor="val_loss",
+                patience=early_stopping_patience,
+                min_delta=early_stopping_min_delta,
+                restore_best_weights=True,
+            )
+        )
+    return callbacks
 
 
 def save_run_artifacts(

@@ -26,6 +26,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--parameter-sharing", choices=("shared", "nonshared"), default="shared")
     parser.add_argument("--best-from-summary", action="store_true")
     parser.add_argument("--best-summary-path", default="reports/cnn/shared_training_summary.csv")
+    parser.add_argument("--early-stopping-patience", type=int, default=None)
+    parser.add_argument("--early-stopping-min-delta", type=float, default=0.0)
+    parser.add_argument("--verbose", type=int, choices=(0, 1, 2), default=1)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--summary-path", default=None)
@@ -57,6 +60,9 @@ def main() -> None:
         batch_size=args.batch_size,
         skip_existing=args.skip_existing,
         parameter_sharing=args.parameter_sharing,
+        early_stopping_patience=args.early_stopping_patience,
+        early_stopping_min_delta=args.early_stopping_min_delta,
+        verbose=args.verbose,
     )
     write_training_summary(results, summary_path)
     for result in results:

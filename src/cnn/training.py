@@ -13,12 +13,14 @@ import tensorflow as tf
 
 from src.cnn.config import CNNConfig
 from src.cnn.data import ImageRecord, load_cnn_dataset, records_to_arrays
-from src.cnn.experiments import CNNExperiment, iter_cnn_experiments
-from src.cnn.keras_models import build_shared_cnn_model, compile_cnn_model
+from src.cnn.experiments import (
+    CNNExperiment,
+    iter_cnn_experiments,
+    run_id_for_parameter_sharing,
+)
+from src.cnn.keras_models import build_cnn_model, compile_cnn_model
 from src.utils.io import read_json, write_csv, write_history_csv, write_json
 from src.utils.random import set_global_seed
-
-_PROJECT_ROOT = Path.cwd().resolve()
 
 
 class CNNImageSequence(tf.keras.utils.Sequence):
@@ -67,15 +69,22 @@ def train_experiment(
     epochs: int | None = None,
     batch_size: int | None = None,
     skip_existing: bool = False,
+    parameter_sharing: str = "shared",
+    early_stopping_patience: int | None = None,
+    early_stopping_min_delta: float = 0.0,
+    verbose: int = 1,
 ) -> dict:
     set_global_seed(config.seed)
-    run_dir = config.output.models_dir / experiment.run_id
+    run_id = run_id_for_parameter_sharing(experiment, parameter_sharing)
+    run_dir = config.output.models_dir / run_id
 
     if skip_existing and is_completed_run(run_dir):
         metrics = read_json(run_dir / "metrics.json")
         return {
-            "run_id": experiment.run_id,
-            "model_dir": _to_relative_path(run_dir),
+            "run_id": run_id,
+            "base_run_id": experiment.run_id,
+            "parameter_sharing": parameter_sharing,
+            "model_dir": str(run_dir),
             "metrics": metrics,
             "status": "skipped",
         }
@@ -99,21 +108,35 @@ def train_experiment(
         seed=config.seed,
     )
 
-    model = compile_cnn_model(build_shared_cnn_model(config, experiment), config)
+    model = compile_cnn_model(
+        build_cnn_model(config, experiment, parameter_sharing=parameter_sharing),
+        config,
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
 
     history = model.fit(
         train_sequence,
         validation_data=validation_sequence,
         epochs=fit_epochs,
-        verbose=1,
+        callbacks=_training_callbacks(early_stopping_patience, early_stopping_min_delta),
+        verbose=verbose,
     )
 
     metrics = evaluate_sequence(model, validation_sequence)
-    save_run_artifacts(model, history.history, metrics, experiment, config, run_dir)
+    save_run_artifacts(
+        model,
+        history.history,
+        metrics,
+        experiment,
+        config,
+        run_dir,
+        parameter_sharing=parameter_sharing,
+    )
     return {
-        "run_id": experiment.run_id,
-        "model_dir": _to_relative_path(run_dir),
+        "run_id": run_id,
+        "base_run_id": experiment.run_id,
+        "parameter_sharing": parameter_sharing,
+        "model_dir": str(run_dir),
         "metrics": metrics,
         "status": "trained",
     }
@@ -125,6 +148,10 @@ def train_experiments(
     epochs: int | None = None,
     batch_size: int | None = None,
     skip_existing: bool = False,
+    parameter_sharing: str = "shared",
+    early_stopping_patience: int | None = None,
+    early_stopping_min_delta: float = 0.0,
+    verbose: int = 1,
 ) -> list[dict]:
     selected = iter_cnn_experiments(config) if experiments is None else tuple(experiments)
     results: list[dict] = []
@@ -137,6 +164,10 @@ def train_experiments(
                 epochs=epochs,
                 batch_size=batch_size,
                 skip_existing=skip_existing,
+                parameter_sharing=parameter_sharing,
+                early_stopping_patience=early_stopping_patience,
+                early_stopping_min_delta=early_stopping_min_delta,
+                verbose=verbose,
             )
         )
 
@@ -145,7 +176,6 @@ def train_experiments(
 
 def is_completed_run(run_dir: Path) -> bool:
     required = (
-        run_dir / "model.keras",
         run_dir / "weights.weights.h5",
         run_dir / "history.csv",
         run_dir / "metrics.json",
@@ -170,6 +200,25 @@ def evaluate_sequence(
     }
 
 
+def _training_callbacks(
+    early_stopping_patience: int | None,
+    early_stopping_min_delta: float,
+) -> list[tf.keras.callbacks.Callback]:
+    callbacks: list[tf.keras.callbacks.Callback] = [
+        tf.keras.callbacks.TerminateOnNaN(),
+    ]
+    if early_stopping_patience is not None:
+        callbacks.append(
+            tf.keras.callbacks.EarlyStopping(
+                monitor="val_loss",
+                patience=early_stopping_patience,
+                min_delta=early_stopping_min_delta,
+                restore_best_weights=True,
+            )
+        )
+    return callbacks
+
+
 def save_run_artifacts(
     model: tf.keras.Model,
     history: dict[str, list[float]],
@@ -177,18 +226,27 @@ def save_run_artifacts(
     experiment: CNNExperiment,
     config: CNNConfig,
     run_dir: Path,
+    parameter_sharing: str = "shared",
 ) -> None:
-    model.save(run_dir / "model.keras")
+    run_id = run_id_for_parameter_sharing(experiment, parameter_sharing)
+    experiment_payload = experiment.to_dict()
+    experiment_payload["run_id"] = run_id
+    experiment_payload["base_run_id"] = experiment.run_id
+    experiment_payload["parameter_sharing"] = parameter_sharing
+
+    if parameter_sharing == "shared":
+        model.save(run_dir / "model.keras")
     model.save_weights(run_dir / "weights.weights.h5")
     write_history_csv(history, run_dir / "history.csv")
     write_json(metrics, run_dir / "metrics.json")
-    write_json(experiment.to_dict(), run_dir / "experiment.json")
+    write_json(experiment_payload, run_dir / "experiment.json")
     write_json(
         {
             "input_shape": config.input_shape,
             "class_names": config.data.class_names,
             "normalization": config.data.normalization,
             "data_format": config.data.data_format,
+            "parameter_sharing": parameter_sharing,
             "conv_padding": config.architecture_defaults.conv_padding,
             "conv_strides": config.architecture_defaults.conv_strides,
             "pool_padding": config.architecture_defaults.pool_padding,
@@ -206,8 +264,10 @@ def write_training_summary(results: Iterable[dict], path: Path) -> None:
         rows.append(
             [
                 result["run_id"],
+                result.get("base_run_id", result["run_id"]),
+                result.get("parameter_sharing", "shared"),
                 result.get("status", ""),
-                result["model_dir"],
+                _portable_path(result["model_dir"]),
                 metrics.get("loss", ""),
                 metrics.get("sparse_categorical_accuracy", ""),
                 metrics.get("macro_f1", ""),
@@ -218,6 +278,8 @@ def write_training_summary(results: Iterable[dict], path: Path) -> None:
         path,
         [
             "run_id",
+            "base_run_id",
+            "parameter_sharing",
             "status",
             "model_dir",
             "loss",
@@ -228,8 +290,9 @@ def write_training_summary(results: Iterable[dict], path: Path) -> None:
     )
 
 
-def _to_relative_path(path: Path) -> str:
+def _portable_path(path: str | Path) -> str:
+    value = Path(path)
     try:
-        return str(path.resolve().relative_to(_PROJECT_ROOT))
+        return value.relative_to(Path.cwd()).as_posix()
     except ValueError:
-        return str(path)
+        return value.as_posix()

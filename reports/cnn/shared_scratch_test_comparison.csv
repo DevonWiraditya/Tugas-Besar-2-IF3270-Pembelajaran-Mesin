@@ -1,0 +1,2 @@
+run_id,parameter_sharing,split,samples,batches,batch_size,keras_macro_f1,scratch_macro_f1,keras_accuracy,scratch_accuracy,prediction_agreement,max_abs_diff,mean_abs_diff,seconds,weights_path
+shared_l2_f32-64_k3x3-3x3_max,shared,test,3000,94,32,0.784462480251923,0.784462480251923,0.7833333333333333,0.7833333333333333,1.0,1.9669532775878906e-06,2.1300530973217886e-08,58.0835487999866,models/cnn/shared_l2_f32-64_k3x3-3x3_max/weights.weights.h5

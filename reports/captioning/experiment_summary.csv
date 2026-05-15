@@ -1,0 +1,13 @@
+run_id,decoder_type,layer_count,hidden_size,split,bleu4,meteor,runtime_seconds,model_dir
+lstm_preinject_layers1_hidden128,lstm,1,128,test,0.055652463118822264,0.367536623920993,595.0510657000013,models/captioning/lstm_preinject_layers1_hidden128
+lstm_preinject_layers1_hidden512,lstm,1,512,test,0.05449170350582206,0.37715317978285495,708.131152599999,models/captioning/lstm_preinject_layers1_hidden512
+lstm_preinject_layers2_hidden128,lstm,2,128,test,0.06793521374644908,0.36500378498406527,522.9679551000008,models/captioning/lstm_preinject_layers2_hidden128
+lstm_preinject_layers2_hidden512,lstm,2,512,test,0.06534819231372914,0.3685927722409755,640.2099342000001,models/captioning/lstm_preinject_layers2_hidden512
+lstm_preinject_layers3_hidden128,lstm,3,128,test,0.06289167255465322,0.3691713910050416,528.8108689000001,models/captioning/lstm_preinject_layers3_hidden128
+lstm_preinject_layers3_hidden512,lstm,3,512,test,0.06345737050702749,0.36899457570824823,598.880270200003,models/captioning/lstm_preinject_layers3_hidden512
+rnn_preinject_layers1_hidden128,rnn,1,128,test,0.05734040359937153,0.3479117553713138,467.8092404000017,models/captioning/rnn_preinject_layers1_hidden128
+rnn_preinject_layers1_hidden512,rnn,1,512,test,0.04725533978392124,0.3386666416257755,494.45810609999535,models/captioning/rnn_preinject_layers1_hidden512
+rnn_preinject_layers2_hidden128,rnn,2,128,test,0.06045092270850104,0.3591755282997835,538.9198235000003,models/captioning/rnn_preinject_layers2_hidden128
+rnn_preinject_layers2_hidden512,rnn,2,512,test,0.03792577919957011,0.3333921549401594,629.9907539999986,models/captioning/rnn_preinject_layers2_hidden512
+rnn_preinject_layers3_hidden128,rnn,3,128,test,0.045400404405259644,0.36339751728483843,743.7710213000028,models/captioning/rnn_preinject_layers3_hidden128
+rnn_preinject_layers3_hidden512,rnn,3,512,test,0.04727702642256929,0.32894359409422813,602.2800960999957,models/captioning/rnn_preinject_layers3_hidden512

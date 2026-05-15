@@ -9,7 +9,15 @@ from src.captioning.scratch.rnn import SimpleRNNCell
 
 
 class ScratchRNNDecoder:
-    def __init__(self, projection: DenseLayer, embedding: EmbeddingLayer, recurrent: SimpleRNNCell, output: DenseLayer, start_id: int, end_id: int) -> None:
+    def __init__(
+        self,
+        projection: DenseLayer,
+        embedding: EmbeddingLayer,
+        recurrent: SimpleRNNCell,
+        output: DenseLayer,
+        start_id: int,
+        end_id: int,
+    ) -> None:
         self.projection = projection
         self.embedding = embedding
         self.recurrent = recurrent
@@ -19,21 +27,44 @@ class ScratchRNNDecoder:
         self.hidden_size = recurrent.recurrent_kernel.shape[0]
 
     def generate(self, feature: np.ndarray, max_length: int) -> list[int]:
-        h_t = np.zeros((self.hidden_size,), dtype=np.float32)
-        tokens = [self.start_id]
-        x_t = self.projection.forward(feature)
-        h_t = self.recurrent.step(x_t, h_t)
+        return self.generate_batch(
+            np.asarray(feature, dtype=np.float32).reshape(1, -1),
+            max_length=max_length,
+        )[0]
+
+    def generate_batch(self, features: np.ndarray, max_length: int) -> list[list[int]]:
+        feature_batch = np.asarray(features, dtype=np.float32)
+        batch_size = feature_batch.shape[0]
+        hidden = np.zeros((batch_size, self.hidden_size), dtype=np.float32)
+        tokens = [[self.start_id] for _ in range(batch_size)]
+        finished = np.zeros((batch_size,), dtype=bool)
+        hidden = self.recurrent.step(self.projection.forward(feature_batch), hidden)
         for _ in range(max_length - 1):
-            next_id = int(np.argmax(self.output.forward(h_t)))
-            tokens.append(next_id)
-            if next_id == self.end_id:
+            probabilities = self.output.forward(hidden)
+            next_ids = np.argmax(probabilities, axis=-1)
+            for index, next_id in enumerate(next_ids.tolist()):
+                if finished[index]:
+                    continue
+                tokens[index].append(int(next_id))
+                if int(next_id) == self.end_id:
+                    finished[index] = True
+            if finished.all():
                 break
-            h_t = self.recurrent.step(self.embedding.forward(np.asarray(next_id, dtype=np.int64)), h_t)
+            embedded = self.embedding.forward(next_ids.astype(np.int64))
+            hidden = self.recurrent.step(embedded, hidden)
         return tokens
 
 
 class ScratchLSTMDecoder:
-    def __init__(self, projection: DenseLayer, embedding: EmbeddingLayer, recurrent: LSTMCell, output: DenseLayer, start_id: int, end_id: int) -> None:
+    def __init__(
+        self,
+        projection: DenseLayer,
+        embedding: EmbeddingLayer,
+        recurrent: LSTMCell,
+        output: DenseLayer,
+        start_id: int,
+        end_id: int,
+    ) -> None:
         self.projection = projection
         self.embedding = embedding
         self.recurrent = recurrent
@@ -43,16 +74,30 @@ class ScratchLSTMDecoder:
         self.hidden_size = recurrent.hidden_units
 
     def generate(self, feature: np.ndarray, max_length: int) -> list[int]:
-        h_t = np.zeros((self.hidden_size,), dtype=np.float32)
-        c_t = np.zeros((self.hidden_size,), dtype=np.float32)
-        tokens = [self.start_id]
-        x_t = self.projection.forward(feature)
-        h_t, c_t = self.recurrent.step(x_t, h_t, c_t)
+        return self.generate_batch(
+            np.asarray(feature, dtype=np.float32).reshape(1, -1),
+            max_length=max_length,
+        )[0]
+
+    def generate_batch(self, features: np.ndarray, max_length: int) -> list[list[int]]:
+        feature_batch = np.asarray(features, dtype=np.float32)
+        batch_size = feature_batch.shape[0]
+        hidden = np.zeros((batch_size, self.hidden_size), dtype=np.float32)
+        cell = np.zeros((batch_size, self.hidden_size), dtype=np.float32)
+        tokens = [[self.start_id] for _ in range(batch_size)]
+        finished = np.zeros((batch_size,), dtype=bool)
+        hidden, cell = self.recurrent.step(self.projection.forward(feature_batch), hidden, cell)
         for _ in range(max_length - 1):
-            next_id = int(np.argmax(self.output.forward(h_t)))
-            tokens.append(next_id)
-            if next_id == self.end_id:
+            probabilities = self.output.forward(hidden)
+            next_ids = np.argmax(probabilities, axis=-1)
+            for index, next_id in enumerate(next_ids.tolist()):
+                if finished[index]:
+                    continue
+                tokens[index].append(int(next_id))
+                if int(next_id) == self.end_id:
+                    finished[index] = True
+            if finished.all():
                 break
-            x_t = self.embedding.forward(np.asarray(next_id, dtype=np.int64))
-            h_t, c_t = self.recurrent.step(x_t, h_t, c_t)
+            embedded = self.embedding.forward(next_ids.astype(np.int64))
+            hidden, cell = self.recurrent.step(embedded, hidden, cell)
         return tokens

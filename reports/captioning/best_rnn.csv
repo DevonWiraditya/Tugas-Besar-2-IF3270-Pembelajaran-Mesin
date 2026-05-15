@@ -1,0 +1,2 @@
+rank,run_id,decoder_type,layer_count,hidden_size,split,bleu4,meteor,runtime_seconds,model_dir
+5,rnn_preinject_layers2_hidden128,rnn,2,128,test,0.06045092270850104,0.3591755282997835,538.9198235000003,models/captioning/rnn_preinject_layers2_hidden128

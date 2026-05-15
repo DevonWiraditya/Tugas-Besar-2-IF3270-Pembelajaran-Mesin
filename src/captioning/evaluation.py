@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 import math
 import time
 
@@ -10,7 +11,10 @@ import tensorflow as tf
 
 from src.captioning.config import CaptioningConfig
 from src.captioning.data import Vocabulary
-from src.captioning.decoding import decode_token_ids, generate_caption_greedy
+from src.captioning.decoding import (
+    decode_token_ids,
+    generate_caption_greedy,
+)
 from src.utils.io import write_json
 
 
@@ -21,13 +25,41 @@ class CaptionMetrics:
     runtime_seconds: float
 
 
-def evaluate_caption_model(model: tf.keras.Model, features: np.ndarray, references: list[list[str]], vocabulary: Vocabulary, config: CaptioningConfig) -> tuple[CaptionMetrics, list[str]]:
+def evaluate_caption_model(
+    model: tf.keras.Model,
+    features: np.ndarray,
+    references: list[list[str]],
+    vocabulary: Vocabulary,
+    config: CaptioningConfig,
+) -> tuple[CaptionMetrics, list[str]]:
     started = time.perf_counter()
-    predictions = [decode_token_ids(generate_caption_greedy(model, feature, vocabulary, config), vocabulary) for feature in features]
+    predictions = []
+    for feature in features:
+        token_ids = generate_caption_greedy(model, feature, vocabulary, config)
+        predictions.append(decode_token_ids(token_ids, vocabulary))
     runtime = time.perf_counter() - started
-    bleu = np.mean([sentence_bleu(refs, pred) for refs, pred in zip(references, predictions)]) if predictions else 0.0
-    meteor = np.mean([sentence_meteor(refs, pred) for refs, pred in zip(references, predictions)]) if predictions else 0.0
-    return CaptionMetrics(bleu4=float(bleu), meteor=float(meteor), runtime_seconds=float(runtime)), predictions
+    bleu = (
+        np.mean(
+            [sentence_bleu(refs, pred) for refs, pred in zip(references, predictions)]
+        )
+        if predictions
+        else 0.0
+    )
+    meteor = (
+        np.mean(
+            [sentence_meteor(refs, pred) for refs, pred in zip(references, predictions)]
+        )
+        if predictions
+        else 0.0
+    )
+    return (
+        CaptionMetrics(
+            bleu4=float(bleu),
+            meteor=float(meteor),
+            runtime_seconds=float(runtime),
+        ),
+        predictions,
+    )
 
 
 def sentence_bleu(references: list[str], prediction: str, max_n: int = 4) -> float:
@@ -53,7 +85,11 @@ def sentence_bleu(references: list[str], prediction: str, max_n: int = 4) -> flo
     ref_lengths = [len(reference.split()) for reference in references]
     pred_length = len(predicted_tokens)
     closest_ref = min(ref_lengths, key=lambda value: (abs(value - pred_length), value))
-    brevity_penalty = 1.0 if pred_length > closest_ref else math.exp(1.0 - closest_ref / max(pred_length, 1))
+    brevity_penalty = (
+        1.0
+        if pred_length > closest_ref
+        else math.exp(1.0 - closest_ref / max(pred_length, 1))
+    )
     return brevity_penalty * geo_mean
 
 
@@ -74,9 +110,27 @@ def sentence_meteor(references: list[str], prediction: str) -> float:
     return best
 
 
-def save_caption_metrics(metrics: CaptionMetrics, predictions: list[str], output_dir: Path, split_name: str) -> None:
-    write_json({'bleu4': metrics.bleu4, 'meteor': metrics.meteor, 'runtime_seconds': metrics.runtime_seconds}, output_dir / f'metrics.{split_name}.json')
-    write_json({'predictions': predictions}, output_dir / f'predictions.{split_name}.json')
+def save_caption_metrics(
+    metrics: CaptionMetrics,
+    predictions: list[str],
+    output_dir: Path,
+    split_name: str,
+) -> None:
+    suffix = split_name
+    write_json(
+        {
+            "bleu4": metrics.bleu4,
+            "meteor": metrics.meteor,
+            "runtime_seconds": metrics.runtime_seconds,
+        },
+        output_dir / f"metrics.{suffix}.json",
+    )
+    write_json(
+        {
+            "predictions": predictions,
+        },
+        output_dir / f"predictions.{suffix}.json",
+    )
 
 
 def _ngrams(tokens: list[str], n: int) -> list[tuple[str, ...]]:

@@ -164,3 +164,6 @@ Dockerfile.local
 *.gz
 *.rar
 *.7z
+artifacts/
+models/
+.venv310/

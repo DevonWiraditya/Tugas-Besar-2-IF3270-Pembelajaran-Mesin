@@ -1,204 +1,170 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Iterable
-
 import csv
-import json
+from pathlib import Path
+import time
 
-import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import confusion_matrix, f1_score
-import tensorflow as tf
+from sklearn.metrics import f1_score
 
 from src.cnn.config import CNNConfig
-from src.cnn.data import CNNDataset, ImageRecord, load_cnn_dataset
-from src.cnn.experiments import CNNExperiment, iter_cnn_experiments
-from src.cnn.training import CNNImageSequence
-from src.utils.io import read_json, write_csv, write_json
-
-_PROJECT_ROOT = Path.cwd().resolve()
-
-
-@dataclass(frozen=True)
-class EvaluationArtifacts:
-    metrics: dict[str, float]
-    predictions: list[dict[str, object]]
-    confusion: list[list[int]]
+from src.cnn.data import iter_record_batches, load_cnn_dataset
+from src.cnn.experiments import get_cnn_experiment, parameter_sharing_from_run_id
+from src.cnn.keras_models import build_cnn_model
+from src.cnn.scratch_model import build_scratch_model_from_keras
+from src.utils.io import write_csv
 
 
-def evaluate_model_records(
-    model: tf.keras.Model,
-    records: Iterable[ImageRecord],
+def compare_keras_and_scratch(
     config: CNNConfig,
-    split_name: str,
+    run_id: str | None = None,
+    summary_path: str | Path | None = None,
+    split: str = "test",
     batch_size: int | None = None,
-) -> EvaluationArtifacts:
-    sequence = CNNImageSequence(
-        records,
-        config=config,
-        batch_size=config.training.batch_size if batch_size is None else batch_size,
-        shuffle=False,
-        seed=config.seed,
+    max_batches: int | None = None,
+    max_samples: int | None = None,
+) -> dict[str, float | int | str]:
+    selected_run_id = run_id or select_best_run_id(
+        Path(summary_path) if summary_path else config.output.reports_dir / "shared_training_summary.csv"
     )
-    probabilities = model.predict(sequence, verbose=0)
-    labels = np.asarray([record.label for record in sequence.records], dtype=np.int64)
-    predictions = np.argmax(probabilities, axis=1)
-    loss, accuracy = model.evaluate(sequence, verbose=0)
-    macro_f1 = f1_score(labels, predictions, average='macro')
-    confusion = confusion_matrix(labels, predictions).tolist()
-    rows = []
-    project_root = Path.cwd().resolve()
-    for record, predicted, distribution in zip(sequence.records, predictions, probabilities):
-        record_path = _to_relative_path(record.path, project_root)
-        rows.append(
-            {
-                'path': record_path,
-                'class_name': record.class_name,
-                'label': int(record.label),
-                'predicted_label': int(predicted),
-                'predicted_class_name': config.data.class_names[int(predicted)],
-                'confidence': float(np.max(distribution)),
-            }
-        )
+    weights_path = config.output.models_dir / selected_run_id / "weights.weights.h5"
 
-    metrics = {
-        'split': split_name,
-        'loss': float(loss),
-        'sparse_categorical_accuracy': float(accuracy),
-        'macro_f1': float(macro_f1),
+    if not weights_path.exists():
+        raise FileNotFoundError(f"Missing trained weights: {weights_path}")
+
+    parameter_sharing = parameter_sharing_from_run_id(selected_run_id)
+    experiment = get_cnn_experiment(config, selected_run_id)
+    keras_model = build_cnn_model(
+        config,
+        experiment,
+        parameter_sharing=parameter_sharing,
+    )
+    keras_model.load_weights(weights_path)
+    scratch_model = build_scratch_model_from_keras(keras_model)
+    records = _split_records(config, split)
+    if max_samples is not None:
+        records = records[:max_samples]
+
+    size = config.training.batch_size if batch_size is None else batch_size
+    started_at = time.perf_counter()
+    max_abs_diff = 0.0
+    total_abs_diff = 0.0
+    total_values = 0
+    batches = 0
+    keras_predictions: list[int] = []
+    scratch_predictions: list[int] = []
+    labels: list[int] = []
+
+    for index, (x, y) in enumerate(
+        iter_record_batches(records, config, batch_size=size, shuffle=False)
+    ):
+        if max_batches is not None and index >= max_batches:
+            break
+
+        keras_probabilities = keras_model.predict(x, verbose=0)
+        scratch_probabilities = scratch_model.forward(x)
+        diff = np.abs(keras_probabilities - scratch_probabilities)
+
+        max_abs_diff = max(max_abs_diff, float(np.max(diff)))
+        total_abs_diff += float(np.sum(diff))
+        total_values += int(diff.size)
+        batches += 1
+        keras_predictions.extend(np.argmax(keras_probabilities, axis=1).tolist())
+        scratch_predictions.extend(np.argmax(scratch_probabilities, axis=1).tolist())
+        labels.extend(y.tolist())
+
+    if not labels:
+        raise ValueError("No records were evaluated.")
+
+    class_labels = list(range(len(config.data.class_names)))
+    keras_array = np.asarray(keras_predictions)
+    scratch_array = np.asarray(scratch_predictions)
+    labels_array = np.asarray(labels)
+
+    return {
+        "run_id": selected_run_id,
+        "parameter_sharing": parameter_sharing,
+        "split": split,
+        "samples": len(labels),
+        "batches": batches,
+        "batch_size": size,
+        "max_abs_diff": max_abs_diff,
+        "mean_abs_diff": total_abs_diff / total_values,
+        "prediction_agreement": float(np.mean(keras_array == scratch_array)),
+        "keras_accuracy": float(np.mean(keras_array == labels_array)),
+        "scratch_accuracy": float(np.mean(scratch_array == labels_array)),
+        "keras_macro_f1": float(
+            f1_score(
+                labels,
+                keras_predictions,
+                labels=class_labels,
+                average="macro",
+                zero_division=0,
+            )
+        ),
+        "scratch_macro_f1": float(
+            f1_score(
+                labels,
+                scratch_predictions,
+                labels=class_labels,
+                average="macro",
+                zero_division=0,
+            )
+        ),
+        "seconds": time.perf_counter() - started_at,
+        "weights_path": _portable_path(weights_path),
     }
-    return EvaluationArtifacts(metrics=metrics, predictions=rows, confusion=confusion)
 
 
-def save_evaluation_artifacts(
-    artifacts: EvaluationArtifacts,
-    output_dir: Path,
-    split_name: str,
-) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    write_json(artifacts.metrics, output_dir / f'metrics.{split_name}.json')
-    _write_predictions_csv(artifacts.predictions, output_dir / f'{split_name}_predictions.csv')
-    write_json({'matrix': artifacts.confusion}, output_dir / f'confusion.{split_name}.json')
+def select_best_run_id(path: Path) -> str:
+    if not path.exists():
+        raise FileNotFoundError(f"Missing summary file, pass --run-id instead: {path}")
 
+    with path.open("r", encoding="utf-8", newline="") as file:
+        rows = list(csv.DictReader(file))
 
-def evaluate_saved_run(
-    config: CNNConfig,
-    run_dir: str | Path,
-    split_name: str = 'test',
-) -> dict[str, float]:
-    run_path = Path(run_dir)
-    dataset = load_cnn_dataset(config)
-    records = _records_for_split(dataset, split_name)
-    model = tf.keras.models.load_model(run_path / 'model.keras')
-    artifacts = evaluate_model_records(model, records, config, split_name=split_name)
-    save_evaluation_artifacts(artifacts, run_path, split_name)
-    return artifacts.metrics
-
-
-def evaluate_all_shared_runs(config: CNNConfig, split_name: str = 'test') -> list[dict[str, object]]:
-    results: list[dict[str, object]] = []
-    for experiment in iter_cnn_experiments(config):
-        run_dir = config.output.models_dir / experiment.run_id
-        if not (run_dir / 'model.keras').exists():
-            continue
-        metrics = evaluate_saved_run(config, run_dir, split_name=split_name)
-        results.append({'run_id': experiment.run_id, 'run_dir': _to_relative_run_dir(run_dir), **metrics})
-    return results
-
-
-def write_ranking(results: Iterable[dict[str, object]], path: Path) -> list[dict[str, object]]:
-    ranked = sorted(results, key=lambda item: float(item['macro_f1']), reverse=True)
-    write_csv(
-        path,
-        ['rank', 'run_id', 'run_dir', 'split', 'loss', 'sparse_categorical_accuracy', 'macro_f1'],
-        [
-            [index, row['run_id'], row['run_dir'], row['split'], row['loss'], row['sparse_categorical_accuracy'], row['macro_f1']]
-            for index, row in enumerate(ranked, start=1)
-        ],
-    )
-    return ranked
-
-
-def select_best_run(ranking: Iterable[dict[str, object]], path: Path) -> dict[str, object]:
-    ranked = list(ranking)
-    if not ranked:
-        raise ValueError('No completed runs available to select the best model.')
-    best = ranked[0]
-    write_json(best, path)
-    return best
-
-
-def plot_training_history(history_csv_path: str | Path, output_path: str | Path) -> None:
-    history_path = Path(history_csv_path)
-    if not history_path.exists():
-        raise FileNotFoundError(history_path)
-
-    with history_path.open('r', encoding='utf-8', newline='') as file:
-        reader = csv.DictReader(file)
-        rows = list(reader)
-
-    epochs = [int(row['epoch']) for row in rows]
-    loss = [float(row['loss']) for row in rows if row.get('loss')]
-    val_loss = [float(row['val_loss']) for row in rows if row.get('val_loss')]
-    accuracy = [float(row['sparse_categorical_accuracy']) for row in rows if row.get('sparse_categorical_accuracy')]
-    val_accuracy = [float(row['val_sparse_categorical_accuracy']) for row in rows if row.get('val_sparse_categorical_accuracy')]
-
-    figure, axes = plt.subplots(1, 2, figsize=(12, 4))
-    axes[0].plot(epochs[: len(loss)], loss, label='train_loss')
-    if val_loss:
-        axes[0].plot(epochs[: len(val_loss)], val_loss, label='val_loss')
-    axes[0].set_title('Loss')
-    axes[0].set_xlabel('Epoch')
-    axes[0].legend()
-
-    axes[1].plot(epochs[: len(accuracy)], accuracy, label='train_accuracy')
-    if val_accuracy:
-        axes[1].plot(epochs[: len(val_accuracy)], val_accuracy, label='val_accuracy')
-    axes[1].set_title('Accuracy')
-    axes[1].set_xlabel('Epoch')
-    axes[1].legend()
-
-    figure.tight_layout()
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path)
-    plt.close(figure)
-
-
-def _write_predictions_csv(rows: list[dict[str, object]], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
-        write_csv(path, ['path', 'class_name', 'label', 'predicted_label', 'predicted_class_name', 'confidence'], [])
-        return
+        raise ValueError(f"Summary file is empty: {path}")
 
-    with path.open('w', encoding='utf-8', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
+    best = max(rows, key=lambda row: float(row["macro_f1"]))
+    return best["run_id"]
 
 
-def _records_for_split(dataset: CNNDataset, split_name: str) -> tuple[ImageRecord, ...]:
-    lookup = {
-        'train': dataset.train,
-        'validation': dataset.validation,
-        'test': dataset.test,
-    }
+def write_comparison_report(result: dict[str, float | int | str], path: str | Path) -> None:
+    header = [
+        "run_id",
+        "parameter_sharing",
+        "split",
+        "samples",
+        "batches",
+        "batch_size",
+        "keras_macro_f1",
+        "scratch_macro_f1",
+        "keras_accuracy",
+        "scratch_accuracy",
+        "prediction_agreement",
+        "max_abs_diff",
+        "mean_abs_diff",
+        "seconds",
+        "weights_path",
+    ]
+    write_csv(path, header, [[result[key] for key in header]])
+
+
+def _split_records(config: CNNConfig, split: str):
+    dataset = load_cnn_dataset(config)
+    if split == "train":
+        return dataset.train
+    if split == "validation":
+        return dataset.validation
+    if split == "test":
+        return dataset.test
+    raise ValueError(f"Unsupported split: {split}")
+
+
+def _portable_path(path: str | Path) -> str:
+    value = Path(path)
     try:
-        return lookup[split_name]
-    except KeyError as exc:
-        raise ValueError(f'Unsupported split_name: {split_name}') from exc
-
-
-def _to_relative_path(path: Path, root: Path) -> str:
-    try:
-        return str(path.resolve().relative_to(root))
+        return value.relative_to(Path.cwd()).as_posix()
     except ValueError:
-        return str(path)
-
-
-def _to_relative_run_dir(path: Path) -> str:
-    try:
-        return str(path.resolve().relative_to(_PROJECT_ROOT))
-    except ValueError:
-        return str(path)
+        return value.as_posix()

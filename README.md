@@ -30,6 +30,10 @@ Jika menggunakan environment GPU terpisah, pastikan TensorFlow dan dependency la
 - `models/` : model hasil training lokal
 - `reports/` : summary, ranking, dan output evaluasi
 
+## Catatan Model
+
+Folder `models/` tidak dipush ke GitHub karena berisi bobot hasil training berukuran besar. Beberapa file model melebihi batas ukuran file GitHub biasa, sehingga memasukkannya ke repository dapat membuat proses clone, pull, dan push menjadi berat atau gagal.
+
 ## Cara Menjalankan CNN
 
 Bagian CNN digunakan untuk image classification pada dataset Intel Image Classification. Pipeline CNN mencakup pelatihan 16 variasi model Conv2D shared parameter, analisis hyperparameter, perbandingan shared vs non-shared parameter, perbandingan Keras vs forward propagation from scratch, serta visualisasi feature maps dan Grad-CAM.
@@ -141,8 +145,7 @@ Untuk notebook captioning, gunakan kernel environment yang sesuai dengan hasil e
 
 ## Pembagian Tugas
 
-### Anggota 1
-...
-
-### Anggota 2
-...
+| Nama | Tugas |
+|---|---|
+| Muhammad Adam Mirza | Mengerjakan seluruh bagian image captioning RNN/LSTM, termasuk preprocessing, training, scratch implementation, evaluasi, dan analisis. |
+| Devon Wiraditya T. | Mengerjakan seluruh bagian CNN, termasuk preprocessing, training, scratch implementation, evaluasi, analisis, serta membantu finalisasi repository dan laporan. |

@@ -98,7 +98,9 @@ Untuk notebook captioning, gunakan kernel environment yang sesuai dengan hasil e
 ## Pembagian Tugas
 
 ### Anggota 1
-...
+Muhammad Adam Mirza / 18223015  
+Mengerjakan seluruh bagian image captioning RNN/LSTM, termasuk preprocessing, training, scratch implementation, evaluasi, dan analisis.
 
 ### Anggota 2
-...
+Devon Wiraditya T / 18223039  
+Mengerjakan seluruh bagian CNN, termasuk preprocessing, training, scratch implementation, evaluasi, analisis, serta membantu finalisasi repository dan laporan.

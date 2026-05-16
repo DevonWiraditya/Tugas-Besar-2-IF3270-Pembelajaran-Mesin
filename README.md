@@ -26,11 +26,13 @@ Jika menggunakan environment GPU terpisah, pastikan TensorFlow dan dependency la
 - `src/scripts/` : runner script
 - `src/notebooks/` : notebook analisis
 - `configs/` : file konfigurasi
-- `artifacts/` : output preprocessing dan feature extraction
-- `models/` : model hasil training
+- `artifacts/` : output preprocessing dan feature extraction lokal
+- `models/` : model hasil training lokal
 - `reports/` : summary, ranking, dan output evaluasi
 
 ## Cara Menjalankan CNN
+
+Bagian CNN digunakan untuk image classification pada dataset Intel Image Classification. Pipeline CNN mencakup pelatihan 16 variasi model Conv2D shared parameter, analisis hyperparameter, perbandingan shared vs non-shared parameter, perbandingan Keras vs forward propagation from scratch, serta visualisasi feature maps dan Grad-CAM.
 
 Validasi konfigurasi:
 
@@ -38,13 +40,55 @@ Validasi konfigurasi:
 python src/scripts/validate_cnn_config.py --check-data
 ```
 
-Training CNN:
+Melihat ringkasan dataset:
 
 ```bash
-python src/scripts/train_cnn.py
+python src/scripts/inspect_cnn_dataset.py --sample-batch
 ```
 
-tambahin wet sesuai ama pny lu
+Melatih 16 variasi CNN shared parameter:
+
+```bash
+python src/scripts/train_cnn.py --parameter-sharing shared
+```
+
+Menganalisis hasil eksperimen shared:
+
+```bash
+python src/scripts/analyze_cnn_results.py
+```
+
+Melatih model non-shared dari arsitektur shared terbaik:
+
+```bash
+python src/scripts/train_cnn.py --parameter-sharing nonshared --best-from-summary --early-stopping-patience 3
+```
+
+Membandingkan shared dan non-shared parameter:
+
+```bash
+python src/scripts/compare_cnn_parameter_sharing.py --require-nonshared
+```
+
+Membandingkan Keras dengan forward propagation from scratch:
+
+```bash
+python src/scripts/compare_cnn_scratch.py --batch-size 32 --output-path reports/cnn/shared_scratch_test_comparison.csv
+```
+
+Mengumpulkan history training untuk notebook:
+
+```bash
+python src/scripts/collect_cnn_histories.py
+```
+
+Membuat visualisasi feature maps dan Grad-CAM:
+
+```bash
+python src/scripts/generate_cnn_visualizations.py
+```
+
+Hasil analisis CNN yang sudah dihasilkan tersimpan di `reports/cnn/`, sedangkan notebook pembahasan berada di `src/notebooks/cnn_analysis.ipynb`. Folder `models/` tidak dipush ke GitHub karena berisi bobot model berukuran besar; jika diperlukan, model perlu dilatih ulang atau dibagikan sebagai artifact terpisah.
 
 ## Cara Menjalankan Captioning
 
